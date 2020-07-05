@@ -1,0 +1,16 @@
+{ nixpkgs ? import <nixpkgs> {} }:
+let
+  inherit ( nixpkgs ) pkgs;
+  inherit ( pkgs ) haskellPackages;
+
+  project = haskellPackages.callPackage ./default.nix {};
+in
+pkgs.stdenv.mkDerivation {
+  name = "migratum";
+  buildInputs = project.env.buildInputs ++ [
+    haskellPackages.cabal-install
+    haskellPackages.ghc
+    haskellPackages.ghcid
+    pkgs.zlib
+  ];
+}
