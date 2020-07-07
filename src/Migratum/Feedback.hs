@@ -4,5 +4,11 @@ import           Import
 
 data MigratumError
   = NoConfig
-  | FileAlredyExists
+  | FileAlreadyExists
+  | DirectoryAlreadyExists
+  deriving ( Eq, Show )
+
+data MigratumResponse
+  = GeneratedFile
+  | GeneratedDirectory
   deriving ( Eq, Show )
