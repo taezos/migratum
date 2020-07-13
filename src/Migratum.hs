@@ -55,17 +55,19 @@ runApp env comm = runReaderT ( unAppM $ interpretCli comm ) env
 interpretCli :: MonadIO m => Command -> AppM m [ MigratumResponse ]
 interpretCli comm = case comm of
   CommandInit -> do
-    dirRes <- generateMigrationDir
-    fileRes <- generateMigrationConfig
-    pure [ dirRes, fileRes ]
+    dirRes <- genMigrationDir
+    sqlDir <- genSqlMigrationDir
+    fileRes <- genMigrationConfig
+    pure [ dirRes, sqlDir, fileRes ]
   CommandMigrate -> do
     c <- readMigrationConfig
     print c
     pure []
 
 instance MonadIO m => ManageFile ( AppM m ) where
-  generateMigrationDir = genMigrationDir mkDirEff
-  generateMigrationConfig = genMigrationConfig mkFileEff
+  genMigrationDir = genMigrationDirImpl mkDirEff
+  genMigrationConfig = genMigrationConfigImpl mkFileEff
+  genSqlMigrationDir = genSqlMigrationDirImpl mkDirEff
 
 instance MonadIO m => ManageMigrationConfig ( AppM m ) where
   readMigrationConfig = readMigrationConfigImpl readFileEff

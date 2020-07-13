@@ -1,4 +1,6 @@
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleContexts       #-}
+{-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE MultiParamTypeClasses  #-}
 module Migratum.Capability.File where
 
 import           Import               hiding (FilePath)
@@ -8,15 +10,18 @@ import           Control.Monad.Except
 
 -- turtle
 import           Turtle               (FilePath)
+import qualified Turtle
 import qualified Turtle.Prelude       as TP
 
 -- migratum
 import           Migratum.Feedback
 import           Migratum.Template
 
-class MonadError MigratumError m => ManageFile m where
-  generateMigrationDir :: m MigratumResponse
-  generateMigrationConfig :: m MigratumResponse
+-- class MonadError MigratumError m => ManageFile m v | m -> v where
+class Monad m => ManageFile m where
+  genMigrationDir :: m MigratumResponse
+  genSqlMigrationDir :: m MigratumResponse
+  genMigrationConfig :: m MigratumResponse
 
 mkDirEff
   :: ( MonadIO m, MonadError MigratumError m )
@@ -26,7 +31,8 @@ mkDirEff dirName = do
   isExists <- TP.testdir dirName
   if isExists
     then throwError DirectoryAlreadyExists
-    else TP.mkdir dirName >> pure GeneratedDirectory
+    else TP.mkdir dirName
+      >> ( pure $ GeneratedDirectory $ either id id $ Turtle.toText dirName )
 
 mkFileEff
   :: ( MonadIO m, MonadError MigratumError m )
@@ -37,18 +43,24 @@ mkFileEff filePath content = do
   isExists <- TP.testfile filePath
   if isExists
     then throwError FileAlreadyExists
-    else liftIO $ TP.writeTextFile filePath content >> pure GeneratedFile
+    else liftIO $ TP.writeTextFile filePath content
+      >> ( pure $ GeneratedFile $ either id id $ Turtle.toText filePath )
 
-genMigrationDir
+genMigrationDirImpl
   :: Monad m
-  => ( FilePath
-  -> m MigratumResponse )
+  => ( FilePath -> m MigratumResponse )
   -> m MigratumResponse
-genMigrationDir createDirEff = createDirEff "./migrations"
+genMigrationDirImpl createDirEff = createDirEff "./migrations"
 
-genMigrationConfig
+genMigrationConfigImpl
   :: Monad m
   => ( FilePath -> Text -> m MigratumResponse )
   -> m MigratumResponse
-genMigrationConfig createFileEff =
+genMigrationConfigImpl createFileEff =
   createFileEff "./migrations/migratum.yaml" migratumConfig
+
+genSqlMigrationDirImpl
+  :: Monad m =>
+  ( FilePath -> m MigratumResponse )
+  -> m MigratumResponse
+genSqlMigrationDirImpl createDirEff = createDirEff "./migrations/sql"

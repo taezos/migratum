@@ -1,7 +1,6 @@
-{-# LANGUAGE DeriveGeneric #-}
 module Migratum.Feedback where
 
-import           Import
+import           Import hiding (FilePath)
 
 data MigratumError
   = NoConfig
@@ -16,8 +15,8 @@ data MigrationReadResult = MigrationReadResult
   } deriving ( Eq, Show )
 
 data MigratumResponse
-  = GeneratedFile
-  | GeneratedDirectory
+  = GeneratedFile Text
+  | GeneratedDirectory Text
   | MigrationPerformed
   | MigrationConfigRead MigrationReadResult
   deriving ( Eq, Show )

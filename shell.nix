@@ -11,6 +11,7 @@ pkgs.stdenv.mkDerivation {
     haskellPackages.cabal-install
     haskellPackages.ghc
     haskellPackages.ghcid
+    haskellPackages.hspec-discover
     pkgs.zlib
   ];
 }
