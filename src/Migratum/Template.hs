@@ -8,4 +8,5 @@ migratumConfig = unlines
   , "  postgres_password:"
   , "  postgres_db:"
   , "  postgres_user:"
+  , "  postgres_host:"
   ]

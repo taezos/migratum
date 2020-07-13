@@ -5,7 +5,7 @@ module Migratum where
 import           Import
 
 -- co-log
-import           Colog                    (richMessageAction)
+import           Colog                               (richMessageAction)
 
 -- mtl
 import           Control.Monad.Except
@@ -15,6 +15,7 @@ import           Options.Applicative
 
 -- migratum
 import           Migratum.Capability.File
+import           Migratum.Capability.MigrationConfig
 import           Migratum.Command
 import           Migratum.Feedback
 import           Migratum.Logging
@@ -57,7 +58,14 @@ interpretCli comm = case comm of
     dirRes <- generateMigrationDir
     fileRes <- generateMigrationConfig
     pure [ dirRes, fileRes ]
+  CommandMigrate -> do
+    c <- readMigrationConfig
+    print c
+    pure []
 
 instance MonadIO m => ManageFile ( AppM m ) where
   generateMigrationDir = genMigrationDir mkDirEff
   generateMigrationConfig = genMigrationConfig mkFileEff
+
+instance MonadIO m => ManageMigrationConfig ( AppM m ) where
+  readMigrationConfig = readMigrationConfigImpl readFileEff
