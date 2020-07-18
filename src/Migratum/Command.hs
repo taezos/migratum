@@ -6,15 +6,21 @@ import           Import
 import           Options.Applicative
 
 data Command
-  = CommandInit
+  = CommandNew
+  | CommandInit
   | CommandMigrate
   deriving ( Eq, Show )
 
 parseCommand :: Parser Command
 parseCommand = subparser $
-  ( command "init" $ parseCommandInit `withInfo` "Initialize Migration" )
+  ( command "new" $ parseCommandNew `withInfo` "Generate files necessary for migration" )
+  <>
+  ( command "init" $ parseCommandInit `withInfo` "Initialize database for migration" )
   <>
   ( command "migrate" $ parseCommandMigrate `withInfo` "Perform Migration" )
+
+parseCommandNew :: Parser Command
+parseCommandNew = pure CommandNew
 
 parseCommandInit :: Parser Command
 parseCommandInit = pure CommandInit

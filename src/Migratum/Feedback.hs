@@ -11,7 +11,7 @@ data MigratumError
   deriving ( Eq, Show )
 
 data MigrationReadResult = MigrationReadResult
-  { _migrationReadResultUrl :: Text
+  { _migrationReadResultConnection :: Text
   } deriving ( Eq, Show )
 
 data MigratumResponse
@@ -19,4 +19,5 @@ data MigratumResponse
   | GeneratedDirectory Text
   | MigrationPerformed
   | MigrationConfigRead MigrationReadResult
+  | MigrationGenericSuccess Text
   deriving ( Eq, Show )

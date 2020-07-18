@@ -17,8 +17,7 @@ import qualified Turtle.Prelude       as TP
 import           Migratum.Feedback
 import           Migratum.Template
 
--- class MonadError MigratumError m => ManageFile m v | m -> v where
-class Monad m => ManageFile m where
+class MonadError MigratumError m => ManageFile m v | m -> v where
   genMigrationDir :: m MigratumResponse
   genSqlMigrationDir :: m MigratumResponse
   genMigrationConfig :: m MigratumResponse

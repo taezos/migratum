@@ -1,11 +1,19 @@
+{-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE PatternSynonyms            #-}
+{-# LANGUAGE InstanceSigs               #-}
+{-# LANGUAGE MultiParamTypeClasses      #-}
+{-# LANGUAGE RecordWildCards            #-}
+{-# LANGUAGE ScopedTypeVariables        #-}
+{-# LANGUAGE TypeApplications           #-}
 module Migratum where
 
-import           Import
+import           Import                        hiding (FilePath)
+
+-- text
+import qualified Data.Text.Encoding            as TE
 
 -- co-log
-import           Colog                               (richMessageAction)
+import           Colog                         (richMessageAction)
 
 -- mtl
 import           Control.Monad.Except
@@ -13,10 +21,14 @@ import           Control.Monad.Except
 -- optparse-applicative
 import           Options.Applicative
 
+-- postgresql-simple
+import           Database.PostgreSQL.Simple
+
 -- migratum
 import           Migratum.Capability.File
-import           Migratum.Capability.MigrationConfig
+import           Migratum.Capability.Migration
 import           Migratum.Command
+import           Migratum.Env
 import           Migratum.Feedback
 import           Migratum.Logging
 
@@ -43,6 +55,8 @@ startApp = do
 migratumEnv :: MonadIO m => Env ( AppM m )
 migratumEnv = Env
   { envLogAction = richMessageAction
+  , envWithTransaction = withTransactionIO
+  , envRunMigration = runMigrationIO
   }
 
 runApp
@@ -54,20 +68,37 @@ runApp env comm = runReaderT ( unAppM $ interpretCli comm ) env
 
 interpretCli :: MonadIO m => Command -> AppM m [ MigratumResponse ]
 interpretCli comm = case comm of
-  CommandInit -> do
+  CommandNew -> do
     dirRes <- genMigrationDir
     sqlDir <- genSqlMigrationDir
     fileRes <- genMigrationConfig
     pure [ dirRes, sqlDir, fileRes ]
+  CommandInit -> do
+    res <- readMigrationConfig
+    case res of
+      MigrationConfigRead MigrationReadResult{..} -> do
+        conn <- liftIO $ connectPostgreSQL ( TE.encodeUtf8 _migrationReadResultConnection )
+        pure <$> initializeMigration conn
+      _                                           -> throwError NoConfig
   CommandMigrate -> do
-    c <- readMigrationConfig
-    print c
-    pure []
+    res <- readMigrationConfig
+    case res of
+      MigrationConfigRead MigrationReadResult{..} -> do
+        conn <- liftIO $ connectPostgreSQL ( TE.encodeUtf8 _migrationReadResultConnection )
+        pure <$> runMigratumMigration conn
+      _                                           -> throwError NoConfig
 
-instance MonadIO m => ManageFile ( AppM m ) where
+instance MonadIO m => ManageFile ( AppM m ) MigratumResponse where
   genMigrationDir = genMigrationDirImpl mkDirEff
   genMigrationConfig = genMigrationConfigImpl mkFileEff
   genSqlMigrationDir = genSqlMigrationDirImpl mkDirEff
 
-instance MonadIO m => ManageMigrationConfig ( AppM m ) where
+instance MonadIO m => ManageMigration ( AppM m ) MigratumResponse where
+  readMigrationConfig :: AppM m MigratumResponse
   readMigrationConfig = readMigrationConfigImpl readFileEff
+
+  runMigratumMigration :: Connection -> AppM m MigratumResponse
+  runMigratumMigration = runMigrationIOImpl
+
+  initializeMigration :: Connection -> AppM m MigratumResponse
+  initializeMigration = initializeMigrationImpl

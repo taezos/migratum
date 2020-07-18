@@ -39,10 +39,11 @@ library
                      , Migratum.Command
                      , Migratum.Feedback
                      , Migratum.Config
+                     , Migratum.Env
                      , Migratum.Logging
                      , Migratum.Template
                      , Migratum.Capability.File
-                     , Migratum.Capability.MigrationConfig
+                     , Migratum.Capability.Migration
   other-modules:       Import
   hs-source-dirs:      src
   build-depends:       base >=4.13 && <4.14
@@ -60,6 +61,8 @@ library
                      , co-log-core
                      , aeson
                      , casing
+                     , postgresql-simple-migration
+                     , postgresql-simple
   default-language:    Haskell2010
   default-extensions:  NoImplicitPrelude
                      , OverloadedStrings

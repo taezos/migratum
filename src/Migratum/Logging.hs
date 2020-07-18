@@ -1,9 +1,3 @@
-{-# LANGUAGE DerivingStrategies    #-}
-{-# LANGUAGE FlexibleContexts      #-}
-{-# LANGUAGE FlexibleInstances     #-}
-{-# LANGUAGE InstanceSigs          #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE PatternSynonyms       #-}
 module Migratum.Logging where
 
 import           Import
@@ -12,24 +6,12 @@ import           Import
 import qualified Data.Text           as T
 
 -- colog
-import           Colog               (HasLog (..), LogAction, Message,
-                                      Severity (..))
+import           Colog               (Severity (..))
 -- microlens
 import           Lens.Micro.Platform
 
 -- ansi-terminal
 import qualified System.Console.ANSI as ANSI
-
-data Env m = Env
-  { envLogAction :: LogAction m Message
-  }
-
-instance HasLog ( Env m ) Message m where
-  getLogAction :: Env m -> LogAction m Message
-  getLogAction = envLogAction
-
-  setLogAction :: LogAction m Message -> Env m -> Env m
-  setLogAction newLogAction env = env { envLogAction = newLogAction }
 
 data LogMessage = LogMessage
   { _logMessageText   :: Text
