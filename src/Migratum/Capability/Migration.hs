@@ -81,12 +81,13 @@ readMigrationConfigImpl
 readMigrationConfigImpl readEff = do
   config <- readEff "./migrations/migratum.yaml"
   either
-    ( throwError . MigratumGenericError . show )
-    ( pure . MigrationConfigRead . MigrationReadResult . mkUrl )
-    ( decodeEither' $ encodeUtf8 config :: Either ParseException MigratumMigrationFile )
+    ( throwError . MigratumGenericError . T.pack . prettyPrintParseException )
+    ( pure . MigrationConfigRead . MigrationReadResult . mkConn )
+    ( decodeEither'
+      $ encodeUtf8 config :: Either ParseException MigratumMigrationFile )
   where
-    mkUrl :: MigratumMigrationFile -> Text
-    mkUrl MigratumMigrationFile{..} = "host="
+    mkConn :: MigratumMigrationFile -> Text
+    mkConn MigratumMigrationFile{..} = "host="
       <> _migrationConfigPostgresHost _migrationFileConfig
       <> " dbname="
       <> _migrationConfigPostgresDb _migrationFileConfig

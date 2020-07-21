@@ -3,7 +3,6 @@
 {-# LANGUAGE InstanceSigs               #-}
 {-# LANGUAGE MultiParamTypeClasses      #-}
 {-# LANGUAGE RecordWildCards            #-}
-{-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE TypeApplications           #-}
 module Migratum where
 
@@ -72,6 +71,7 @@ interpretCli comm = case comm of
     dirRes <- genMigrationDir
     sqlDir <- genSqlMigrationDir
     fileRes <- genMigrationConfig
+    print [ dirRes, sqlDir, fileRes ]
     pure [ dirRes, sqlDir, fileRes ]
   CommandInit -> do
     res <- readMigrationConfig

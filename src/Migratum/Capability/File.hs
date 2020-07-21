@@ -31,7 +31,7 @@ mkDirEff dirName = do
   if isExists
     then throwError DirectoryAlreadyExists
     else TP.mkdir dirName
-      >> ( pure $ GeneratedDirectory $ either id id $ Turtle.toText dirName )
+      >> ( pure $ Generated $ either id id $ Turtle.toText dirName )
 
 mkFileEff
   :: ( MonadIO m, MonadError MigratumError m )
@@ -43,7 +43,7 @@ mkFileEff filePath content = do
   if isExists
     then throwError FileAlreadyExists
     else liftIO $ TP.writeTextFile filePath content
-      >> ( pure $ GeneratedFile $ either id id $ Turtle.toText filePath )
+      >> ( pure $ Generated $ either id id $ Turtle.toText filePath )
 
 genMigrationDirImpl
   :: Monad m
