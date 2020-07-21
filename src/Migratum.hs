@@ -71,7 +71,6 @@ interpretCli comm = case comm of
     dirRes <- genMigrationDir
     sqlDir <- genSqlMigrationDir
     fileRes <- genMigrationConfig
-    print [ dirRes, sqlDir, fileRes ]
     pure [ dirRes, sqlDir, fileRes ]
   CommandInit -> do
     res <- readMigrationConfig

@@ -81,7 +81,7 @@ readMigrationConfigImpl
 readMigrationConfigImpl readEff = do
   config <- readEff "./migrations/migratum.yaml"
   either
-    ( throwError . MigratumGenericError . T.pack . prettyPrintParseException )
+    ( throwError . MigratumError . T.pack . prettyPrintParseException )
     ( pure . MigrationConfigRead . MigrationReadResult . mkConn )
     ( decodeEither'
       $ encodeUtf8 config :: Either ParseException MigratumMigrationFile )
@@ -101,8 +101,8 @@ initializeMigrationImpl
   => Connection
   -> m MigratumResponse
 initializeMigrationImpl conn = tryIOException
-  ( const $ throwError $ MigratumGenericError "initialization failed" )
-  ( const $ pure $ MigrationGenericSuccess "initialization success" )
+  ( const $ throwError $ MigratumError "initialization failed" )
+  ( const $ pure $ MigratumSuccess "initialization success" )
   $ withTransaction conn
     $ runMigration $ MigrationContext MigrationInitialization True conn
 
@@ -115,7 +115,7 @@ runMigrationIOImpl conn = do
     $ runMigration
     $ MigrationContext ( MigrationDirectory dirPath ) True conn
   case res of
-    MigrationError e -> throwError $ MigratumGenericError $ T.pack e
+    MigrationError e -> throwError $ MigratumError $ T.pack e
     MigrationSuccess -> pure MigrationPerformed
   where
     dirPath :: String
@@ -159,7 +159,7 @@ runMigrationBase transactionImpl runMigrationImpl conn = do
     $ runMigrationImpl
     $ MigrationContext ( MigrationDirectory dirPath ) True conn
   case res of
-    MigrationError e -> throwError $ MigratumGenericError $ T.pack e
+    MigrationError e -> throwError $ MigratumError $ T.pack e
     MigrationSuccess -> pure MigrationPerformed
   where
     dirPath :: String

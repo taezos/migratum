@@ -13,8 +13,20 @@ data MigratumError
   | FileAlreadyExists
   | DirectoryAlreadyExists
   | FileMissing
-  | MigratumGenericError Text
-  deriving ( Eq, Show )
+  | MigratumError Text
+  deriving ( Eq )
+
+-- | Manually deriving Show instance so it will result into
+-- > MigratumError Aeson exception:
+-- > Error in $.config['postgres_password']: parsing Text failed, expected String, but encountered Null
+-- and not
+-- > "MigratumGenericError "Aeson exception:\nError in $.config['postgres_password']: parsing Text failed, expected String, but encountered Null"
+instance Show MigratumError where
+  show NoConfig                 = show NoConfig
+  show FileAlreadyExists        = show FileAlreadyExists
+  show DirectoryAlreadyExists   = show DirectoryAlreadyExists
+  show FileMissing              = show FileMissing
+  show ( MigratumError errMsg ) = "MigratumError " <> T.unpack errMsg
 
 data MigrationReadResult = MigrationReadResult
   { _migrationReadResultConnection :: Text
@@ -24,7 +36,7 @@ data MigratumResponse
   = Generated Text
   | MigrationPerformed
   | MigrationConfigRead MigrationReadResult
-  | MigrationGenericSuccess Text
+  | MigratumSuccess Text
   deriving ( Eq )
 
 -- | Manually deriving Show instance so it will result into
@@ -32,7 +44,7 @@ data MigratumResponse
 -- and not
 -- > Generate "./migrations/sql"
 instance Show MigratumResponse where
-  show ( Generated filepath )          = "Generated " <> T.unpack filepath
-  show MigrationPerformed              = show MigrationPerformed
-  show ( MigrationConfigRead result )  = "MigrationConfigRead "  <> show result
-  show ( MigrationGenericSuccess msg ) = "MigrationGenericSuccess " <> T.unpack msg
+  show ( Generated filepath )         = "Generated " <> T.unpack filepath
+  show MigrationPerformed             = show MigrationPerformed
+  show ( MigrationConfigRead result ) = "MigrationConfigRead "  <> show result
+  show ( MigratumSuccess msg )        = "MigrationSuccess " <> T.unpack msg
