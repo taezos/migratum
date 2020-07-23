@@ -61,11 +61,13 @@ library
                      , co-log-core
                      , aeson
                      , casing
-                     , postgresql-simple-migration
-                     , postgresql-simple
+                     , hasql
+                     , hasql-migration
+                     , hasql-transaction
   default-language:    Haskell2010
   default-extensions:  NoImplicitPrelude
                      , OverloadedStrings
+                     , StrictData
   ghc-options:
     -Wall
     -j6

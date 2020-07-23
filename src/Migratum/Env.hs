@@ -4,24 +4,11 @@
 {-# LANGUAGE RankNTypes            #-}
 module Migratum.Env where
 
-import           Import
-
 -- colog
-import           Colog                                (HasLog (..), LogAction,
-                                                       Message)
--- postgresql-simple
-import           Database.PostgreSQL.Simple
-
--- postgresql-simple-migration
-import           Database.PostgreSQL.Simple.Migration
-
---
-import           Migratum.Feedback
+import           Colog (HasLog (..), LogAction, Message)
 
 data Env m = Env
   { envLogAction       :: LogAction m Message
-  , envWithTransaction :: forall a. Connection -> IO a -> m MigratumResponse
-  , envRunMigration    :: MigrationContext -> m ( MigrationResult String )
   }
 
 instance HasLog ( Env m ) Message m where

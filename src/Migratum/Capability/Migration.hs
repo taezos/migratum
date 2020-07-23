@@ -8,64 +8,45 @@
 {-# LANGUAGE TypeApplications       #-}
 module Migratum.Capability.Migration where
 
-import           Import                               hiding (FilePath)
+import           Import                     hiding (FilePath)
 
-import           Control.Exception
+-- filepath
+import           System.FilePath            (takeFileName)
 
 -- text
-import qualified Data.Text                            as T
+import qualified Data.Text                  as T
+import qualified Data.Text.Encoding         as TE
 
 -- mtl
 import           Control.Monad.Except
 
--- char
-import qualified Data.Char                            as C
-
--- casing
-import           Text.Casing                          (snake)
-
 -- yaml
 import           Data.Yaml
 
--- aeson
-import           Data.Aeson
-
 -- turtle
-import           Turtle                               (FilePath)
-import qualified Turtle.Prelude                       as TP
+import           Turtle                     (FilePath)
+import qualified Turtle
+import qualified Turtle.Prelude             as TP
 
--- postgresql-simple-migration
-import           Database.PostgreSQL.Simple.Migration
+-- hasql
+import           Hasql.Connection           (Connection, Settings)
+import qualified Hasql.Connection           as Connection
+import           Hasql.Session              (QueryError)
+import qualified Hasql.Session              as Session
+import           Hasql.Transaction          (Transaction)
+import           Hasql.Transaction.Sessions (IsolationLevel (..), Mode (..))
+import qualified Hasql.Transaction.Sessions as Transaction
 
--- postgresql-simple
-import           Database.PostgreSQL.Simple
+-- hasql-migratin
+import           Hasql.Migration
 
 -- migratum
 import           Migratum.Feedback
 
 class MonadError MigratumError m => ManageMigration m v | m -> v where
-  initializeMigration :: Connection -> m MigratumResponse
-  readMigrationConfig :: m MigratumResponse
-  runMigratumMigration :: Connection -> m MigratumResponse
-
-data MigratumMigrationFile = MigratumMigrationFile
-  { _migrationFileConfig :: MigrationConfig
-  } deriving ( Eq, Show, Generic )
-
-instance FromJSON MigratumMigrationFile  where
-  parseJSON = genericParseJSON
-    defaultOptions { fieldLabelModifier = fmap C.toLower . drop 14 }
-
-data MigrationConfig = MigrationConfig
-  { _migrationConfigPostgresPassword :: Text
-  , _migrationConfigPostgresDb       :: Text
-  , _migrationConfigPostgresUser     :: Text
-  , _migrationConfigPostgresHost     :: Text
-  } deriving ( Eq, Show, Generic )
-
-instance FromJSON MigrationConfig where
-  parseJSON = genericParseJSON
-    defaultOptions { fieldLabelModifier = fmap C.toLower . snake . drop 16 }
+  initializeMigration :: Config -> m MigratumResponse
+  readMigrationConfig :: m Config
+  runMigratumMigration :: Config -> [ FilePath ] -> m [ MigratumResponse ]
 
 readFileEff :: ( MonadIO m, MonadError MigratumError m ) => FilePath -> m Text
 readFileEff filePath = do
@@ -77,90 +58,86 @@ readFileEff filePath = do
 readMigrationConfigImpl
   :: ( Monad m, MonadError MigratumError m )
   => ( FilePath -> m Text )
-  -> m MigratumResponse
+  -> m Config
 readMigrationConfigImpl readEff = do
   config <- readEff "./migrations/migratum.yaml"
   either
     ( throwError . MigratumError . T.pack . prettyPrintParseException )
-    ( pure . MigrationConfigRead . MigrationReadResult . mkConn )
+    pure
     ( decodeEither'
-      $ encodeUtf8 config :: Either ParseException MigratumMigrationFile )
+      $ encodeUtf8 config :: Either ParseException Config )
+
+data MigratumScript = MigratumScript
+  { migratumScriptFileName :: String
+  , migratumScriptFilePath :: String
+  } deriving ( Eq, Show )
+
+runMigratumMigrationImpl
+  :: ( MonadIO m, MonadError MigratumError m )
+  => Config
+  -> [ FilePath ]
+  -> m [ MigratumResponse ]
+runMigratumMigrationImpl Config{..} scriptNames = do
+  conn <- either
+    ( const $ throwError NoConfig )
+    pure
+    =<< ( liftIO $ Connection.acquire $ mkConnectionSettings _configMigrationConfig )
+  migrationScripts <- liftIO
+    $ sequence
+    $ (\MigratumScript{..} -> loadMigrationFromFile
+        migratumScriptFileName
+        migratumScriptFilePath
+      )
+    <$> ( scriptNameToMigratumScript <$> scriptNames )
+
+  res <- traverse ( runTransaction conn ) $ runMigration <$> migrationScripts
+  traverse resHandler  res
   where
-    mkConn :: MigratumMigrationFile -> Text
-    mkConn MigratumMigrationFile{..} = "host="
-      <> _migrationConfigPostgresHost _migrationFileConfig
-      <> " dbname="
-      <> _migrationConfigPostgresDb _migrationFileConfig
-      <> " user="
-      <> _migrationConfigPostgresUser _migrationFileConfig
-      <> " password="
-      <> _migrationConfigPostgresPassword _migrationFileConfig
+    resHandler
+      :: ( Monad m, MonadError MigratumError m )
+      => Either QueryError ( Maybe MigrationError )
+      -> m MigratumResponse
+    resHandler res = case res of
+      Left err -> throwError . MigratumError . show $ err
+      Right mQueryError -> maybe
+        ( pure MigrationPerformed )
+        ( throwError . MigratumError . show )
+        mQueryError
+
+    scriptNameToMigratumScript :: FilePath -> MigratumScript
+    scriptNameToMigratumScript =
+      (\fp -> MigratumScript ( takeFileName fp ) fp ) . Turtle.encodeString
 
 initializeMigrationImpl
-  :: ( MonadError MigratumError m, MonadIO m )
-  => Connection
-  -> m MigratumResponse
-initializeMigrationImpl conn = tryIOException
-  ( const $ throwError $ MigratumError "initialization failed" )
-  ( const $ pure $ MigratumSuccess "initialization success" )
-  $ withTransaction conn
-    $ runMigration $ MigrationContext MigrationInitialization True conn
-
-runMigrationIOImpl
   :: ( MonadIO m, MonadError MigratumError m )
-  => Connection
+  => Config
   -> m MigratumResponse
-runMigrationIOImpl conn = do
-  res <- liftIO $ withTransaction conn
-    $ runMigration
-    $ MigrationContext ( MigrationDirectory dirPath ) True conn
+initializeMigrationImpl Config{..} = do
+  conn <- either
+    ( const $ throwError NoConfig )
+    pure
+    =<< ( liftIO $ Connection.acquire $ mkConnectionSettings _configMigrationConfig )
+  res <- runTransaction conn $ runMigration MigrationInitialization
   case res of
-    MigrationError e -> throwError $ MigratumError $ T.pack e
-    MigrationSuccess -> pure MigrationPerformed
-  where
-    dirPath :: String
-    dirPath = "./migrations/sql/"
+    Left err -> throwError . MigratumError $ show err
+    Right mig -> maybe
+      ( pure InitializedMigration )
+      ( throwError . MigratumError . show )
+      mig
 
-tryIOException
-  :: ( MonadError MigratumError m, MonadIO m )
-  => (IOException -> m c)
-  -> (b -> m c)
-  -> IO b
-  -> m c
-tryIOException h f = either h f <=< liftIO . try @IOException
-
-withTransactionIO
-  :: ( MonadError MigratumError m, MonadIO m )
+-- utils
+runTransaction
+  :: MonadIO m
   => Connection
-  -> IO a
-  -> m MigratumResponse
-withTransactionIO conn mig = tryIOException
-  ( const $ throwError FileMissing )
-  ( const $ pure MigrationPerformed )
-  $ withTransaction conn mig
+  -> Transaction a
+  -> m ( Either QueryError a )
+runTransaction conn trans = liftIO $
+  Session.run ( Transaction.transaction ReadCommitted Write trans ) conn
 
-runMigrationIO
-  :: ( MonadError MigratumError m, MonadIO m )
-  => MigrationContext
-  -> m ( MigrationResult String )
-runMigrationIO context = tryIOException
-  ( const $ throwError FileMissing )
-  pure
-  $ runMigration context
-
-runMigrationBase
-  :: ( Monad m, MonadError MigratumError m )
-  => ( Connection -> m ( MigrationResult String ) -> m ( MigrationResult String ) )
-  -> ( MigrationContext -> m ( MigrationResult String ) )
-  -> Connection
-  -> m MigratumResponse
-runMigrationBase transactionImpl runMigrationImpl conn = do
-  res <- transactionImpl conn
-    $ runMigrationImpl
-    $ MigrationContext ( MigrationDirectory dirPath ) True conn
-  case res of
-    MigrationError e -> throwError $ MigratumError $ T.pack e
-    MigrationSuccess -> pure MigrationPerformed
-  where
-    dirPath :: String
-    dirPath = "./migrations/sql/"
+mkConnectionSettings :: MigrationConfig -> Settings
+mkConnectionSettings MigrationConfig{..} = Connection.settings
+  ( TE.encodeUtf8 _migrationConfigPostgresHost )
+  _migrationConfigPostgresPort
+  ( TE.encodeUtf8 _migrationConfigPostgresUser )
+  ( TE.encodeUtf8 _migrationConfigPostgresPassword )
+  ( TE.encodeUtf8 _migrationConfigPostgresDb )

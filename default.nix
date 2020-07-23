@@ -1,6 +1,6 @@
 { mkDerivation, base, stdenv, relude, mtl, text, optparse-applicative, turtle
 , filepath, yaml, aeson, microlens-platform, ansi-terminal, co-log, co-log-core
-, casing, postgresql-simple, postgresql-simple-migration
+, casing, hasql, hasql-migration, hasql-transaction
 }:
 mkDerivation {
   pname = "migratum";
@@ -10,8 +10,8 @@ mkDerivation {
   isExecutable = true;
   libraryHaskellDepends =
     [ base relude mtl text optparse-applicative turtle filepath aeson yaml
-      microlens-platform ansi-terminal co-log co-log-core casing postgresql-simple
-      postgresql-simple-migration
+      microlens-platform ansi-terminal co-log co-log-core casing hasql
+      hasql-migration hasql-transaction
     ];
   executableHaskellDepends = [ base relude ];
   license = "apache";

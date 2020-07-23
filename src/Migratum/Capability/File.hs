@@ -12,6 +12,8 @@ import           Control.Monad.Except
 import           Turtle               (FilePath)
 import qualified Turtle
 import qualified Turtle.Prelude       as TP
+import           Turtle.Shell         (FoldShell (..))
+import qualified Turtle.Shell         as TS
 
 -- migratum
 import           Migratum.Feedback
@@ -21,6 +23,11 @@ class MonadError MigratumError m => ManageFile m v | m -> v where
   genMigrationDir :: m MigratumResponse
   genSqlMigrationDir :: m MigratumResponse
   genMigrationConfig :: m MigratumResponse
+  getMigrationScriptNames :: m [ FilePath ]
+
+readDirEff :: MonadIO m => FilePath -> m [ FilePath ]
+readDirEff fp = TS.foldShell ( TP.ls fp )
+  ( FoldShell (\filePaths filePath -> pure $ filePath : filePaths) empty pure )
 
 mkDirEff
   :: ( MonadIO m, MonadError MigratumError m )
@@ -63,3 +70,6 @@ genSqlMigrationDirImpl
   ( FilePath -> m MigratumResponse )
   -> m MigratumResponse
 genSqlMigrationDirImpl createDirEff = createDirEff "./migrations/sql"
+
+getMigrationScriptNamesImpl :: Monad m => ( FilePath -> m [ FilePath ] ) -> m [ FilePath ]
+getMigrationScriptNamesImpl readDir = readDir "./migrations/sql"

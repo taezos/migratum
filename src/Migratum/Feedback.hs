@@ -1,12 +1,19 @@
+{-# LANGUAGE DeriveGeneric #-}
 module Migratum.Feedback where
 
-import           Import    hiding (FilePath, show)
+import           Import      hiding (FilePath, show)
 
 -- base
 import           Text.Show
 
+-- aeson
+import           Data.Aeson
+
 -- text
-import qualified Data.Text as T
+import qualified Data.Text   as T
+
+-- casing
+import           Text.Casing (quietSnake)
 
 data MigratumError
   = NoConfig
@@ -22,20 +29,37 @@ data MigratumError
 -- and not
 -- > "MigratumGenericError "Aeson exception:\nError in $.config['postgres_password']: parsing Text failed, expected String, but encountered Null"
 instance Show MigratumError where
-  show NoConfig                 = show NoConfig
-  show FileAlreadyExists        = show FileAlreadyExists
-  show DirectoryAlreadyExists   = show DirectoryAlreadyExists
-  show FileMissing              = show FileMissing
+  show NoConfig                 = "NoConfig"
+  show FileAlreadyExists        = "FileAlreadyExists"
+  show DirectoryAlreadyExists   = "DirectoryAlreadyExists"
+  show FileMissing              = "FileMissing"
   show ( MigratumError errMsg ) = "MigratumError " <> T.unpack errMsg
 
-data MigrationReadResult = MigrationReadResult
-  { _migrationReadResultConnection :: Text
-  } deriving ( Eq, Show )
+data Config = Config
+  { _configMigrationConfig :: MigrationConfig
+  } deriving ( Eq, Show, Generic )
+
+instance FromJSON Config where
+  parseJSON = genericParseJSON
+    defaultOptions { fieldLabelModifier = quietSnake . drop 16 }
+
+data MigrationConfig = MigrationConfig
+  { _migrationConfigPostgresPassword :: Text
+  , _migrationConfigPostgresDb       :: Text
+  , _migrationConfigPostgresUser     :: Text
+  , _migrationConfigPostgresHost     :: Text
+  , _migrationConfigPostgresPort     :: Word16
+  } deriving ( Eq, Show, Generic )
+
+instance FromJSON MigrationConfig where
+  parseJSON = genericParseJSON
+    defaultOptions { fieldLabelModifier = quietSnake . drop 16 }
 
 data MigratumResponse
   = Generated Text
   | MigrationPerformed
-  | MigrationConfigRead MigrationReadResult
+  | InitializedMigration
+  | MigrationConfigRead MigrationConfig
   | MigratumSuccess Text
   deriving ( Eq )
 
@@ -45,6 +69,7 @@ data MigratumResponse
 -- > Generate "./migrations/sql"
 instance Show MigratumResponse where
   show ( Generated filepath )         = "Generated " <> T.unpack filepath
-  show MigrationPerformed             = show MigrationPerformed
+  show MigrationPerformed             = "MigrationPerformed"
   show ( MigrationConfigRead result ) = "MigrationConfigRead "  <> show result
   show ( MigratumSuccess msg )        = "MigrationSuccess " <> T.unpack msg
+  show InitializedMigration           = "InitializedMigration"

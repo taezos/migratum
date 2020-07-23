@@ -9,4 +9,5 @@ migratumConfig = unlines
   , "  postgres_db:"
   , "  postgres_user:"
   , "  postgres_host:"
+  , "  postgres_port:"
   ]

@@ -8,9 +8,6 @@ module Migratum where
 
 import           Import                        hiding (FilePath)
 
--- text
-import qualified Data.Text.Encoding            as TE
-
 -- co-log
 import           Colog                         (richMessageAction)
 
@@ -19,9 +16,6 @@ import           Control.Monad.Except
 
 -- optparse-applicative
 import           Options.Applicative
-
--- postgresql-simple
-import           Database.PostgreSQL.Simple
 
 -- migratum
 import           Migratum.Capability.File
@@ -54,8 +48,6 @@ startApp = do
 migratumEnv :: MonadIO m => Env ( AppM m )
 migratumEnv = Env
   { envLogAction = richMessageAction
-  , envWithTransaction = withTransactionIO
-  , envRunMigration = runMigrationIO
   }
 
 runApp
@@ -73,31 +65,20 @@ interpretCli comm = case comm of
     fileRes <- genMigrationConfig
     pure [ dirRes, sqlDir, fileRes ]
   CommandInit -> do
-    res <- readMigrationConfig
-    case res of
-      MigrationConfigRead MigrationReadResult{..} -> do
-        conn <- liftIO $ connectPostgreSQL ( TE.encodeUtf8 _migrationReadResultConnection )
-        pure <$> initializeMigration conn
-      _                                           -> throwError NoConfig
+    config <- readMigrationConfig
+    pure <$> initializeMigration config
   CommandMigrate -> do
-    res <- readMigrationConfig
-    case res of
-      MigrationConfigRead MigrationReadResult{..} -> do
-        conn <- liftIO $ connectPostgreSQL ( TE.encodeUtf8 _migrationReadResultConnection )
-        pure <$> runMigratumMigration conn
-      _                                           -> throwError NoConfig
+    config <- readMigrationConfig
+    scriptNames <- getMigrationScriptNames
+    runMigratumMigration config scriptNames
 
 instance MonadIO m => ManageFile ( AppM m ) MigratumResponse where
   genMigrationDir = genMigrationDirImpl mkDirEff
   genMigrationConfig = genMigrationConfigImpl mkFileEff
   genSqlMigrationDir = genSqlMigrationDirImpl mkDirEff
+  getMigrationScriptNames = getMigrationScriptNamesImpl readDirEff
 
 instance MonadIO m => ManageMigration ( AppM m ) MigratumResponse where
-  readMigrationConfig :: AppM m MigratumResponse
   readMigrationConfig = readMigrationConfigImpl readFileEff
-
-  runMigratumMigration :: Connection -> AppM m MigratumResponse
-  runMigratumMigration = runMigrationIOImpl
-
-  initializeMigration :: Connection -> AppM m MigratumResponse
-  initializeMigration = initializeMigrationImpl
+  runMigratumMigration = runMigratumMigrationImpl
+  initializeMigration config = initializeMigrationImpl config
