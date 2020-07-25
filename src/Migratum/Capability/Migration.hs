@@ -10,9 +10,6 @@ module Migratum.Capability.Migration where
 
 import           Import                     hiding (FilePath)
 
--- filepath
-import           System.FilePath            (takeFileName)
-
 -- text
 import qualified Data.Text                  as T
 import qualified Data.Text.Encoding         as TE
@@ -91,7 +88,7 @@ runMigratumMigrationImpl Config{..} scriptNames = do
     <$> ( scriptNameToMigratumScript <$> scriptNames )
 
   res <- traverse ( runTransaction conn ) $ runMigration <$> migrationScripts
-  traverse resHandler  res
+  traverse resHandler res
   where
     resHandler
       :: ( Monad m, MonadError MigratumError m )
@@ -105,8 +102,9 @@ runMigratumMigrationImpl Config{..} scriptNames = do
         mQueryError
 
     scriptNameToMigratumScript :: FilePath -> MigratumScript
-    scriptNameToMigratumScript =
-      (\fp -> MigratumScript ( takeFileName fp ) fp ) . Turtle.encodeString
+    scriptNameToMigratumScript fp = MigratumScript
+      ( Turtle.encodeString $ Turtle.filename fp )
+      ( Turtle.encodeString fp )
 
 initializeMigrationImpl
   :: ( MonadIO m, MonadError MigratumError m )
