@@ -1,4 +1,4 @@
-{ nixpkgs ? import <nixpkgs> {} }:
+{ nixpkgs ? import ./nix/pinned.nix {} }:
 let
   inherit ( nixpkgs ) pkgs;
   inherit ( pkgs ) haskellPackages;
@@ -13,5 +13,6 @@ pkgs.stdenv.mkDerivation {
     haskellPackages.ghcid
     haskellPackages.hspec-discover
     pkgs.zlib
+    pkgs.postgresql
   ];
 }
