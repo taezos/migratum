@@ -12,7 +12,7 @@ pkgs.stdenv.mkDerivation {
     haskellPackages.ghc
     haskellPackages.ghcid
     haskellPackages.hspec-discover
-    pkgs.zlib
     pkgs.postgresql
+    pkgs.zlib
   ];
 }

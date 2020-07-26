@@ -55,7 +55,8 @@ library
                      , aeson
                      , yaml
                      , ansi-terminal
-                     , microlens-platform
+                     , microlens
+                     , microlens-th
                      , co-log
                      , co-log-core
                      , aeson
@@ -63,6 +64,8 @@ library
                      , hasql
                      , hasql-migration
                      , hasql-transaction
+                     , parsec
+                     , extra
   default-language:    Haskell2010
   default-extensions:  NoImplicitPrelude
                      , OverloadedStrings

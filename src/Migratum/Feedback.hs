@@ -55,9 +55,15 @@ instance FromJSON MigrationConfig where
   parseJSON = genericParseJSON
     defaultOptions { fieldLabelModifier = quietSnake . drop 16 }
 
+newtype MigratumFilename = MigratumFilename Text
+  deriving ( Eq, Show )
+
+migratumFileNameToText :: MigratumFilename -> Text
+migratumFileNameToText ( MigratumFilename fn ) = fn
+
 data MigratumResponse
   = Generated Text
-  | MigrationPerformed
+  | MigrationPerformed MigratumFilename
   | InitializedMigration
   | MigrationConfigRead MigrationConfig
   | MigratumSuccess Text
@@ -68,8 +74,9 @@ data MigratumResponse
 -- and not
 -- > Generate "./migrations/sql"
 instance Show MigratumResponse where
-  show ( Generated filepath )         = "Generated " <> T.unpack filepath
-  show MigrationPerformed             = "MigrationPerformed"
-  show ( MigrationConfigRead result ) = "MigrationConfigRead "  <> show result
-  show ( MigratumSuccess msg )        = "MigrationSuccess " <> T.unpack msg
-  show InitializedMigration           = "InitializedMigration"
+  show ( Generated filepath )          = "Generated " <> T.unpack filepath
+  show ( MigrationPerformed filename ) = "MigrationPerformed "
+    <> ( T.unpack $ migratumFileNameToText filename )
+  show ( MigrationConfigRead result )  = "MigrationConfigRead "  <> show result
+  show ( MigratumSuccess msg )         = "MigrationSuccess " <> T.unpack msg
+  show InitializedMigration            = "InitializedMigration"

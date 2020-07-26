@@ -1,12 +1,15 @@
 {-# LANGUAGE FlexibleContexts       #-}
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE MultiParamTypeClasses  #-}
+{-# LANGUAGE RecordWildCards        #-}
+{-# LANGUAGE ScopedTypeVariables    #-}
 module Migratum.Capability.File where
 
 import           Import               hiding (FilePath)
 
 -- mtl
 import           Control.Monad.Except
+
 
 -- turtle
 import           Turtle               (FilePath)
@@ -23,8 +26,13 @@ class MonadError MigratumError m => ManageFile m v | m -> v where
   genMigrationDir :: m MigratumResponse
   genSqlMigrationDir :: m MigratumResponse
   genMigrationConfig :: m MigratumResponse
+  -- | sql script names must follow the migratum naming convention.
+  -- For example,
+  --
+  -- > V1__my_table.sql
   getMigrationScriptNames :: m [ FilePath ]
 
+-- * Implementations
 readDirEff :: MonadIO m => FilePath -> m [ FilePath ]
 readDirEff fp = TS.foldShell ( TP.ls fp )
   ( FoldShell (\filePaths filePath -> pure $ filePath : filePaths) empty pure )
@@ -71,5 +79,8 @@ genSqlMigrationDirImpl
   -> m MigratumResponse
 genSqlMigrationDirImpl createDirEff = createDirEff "./migrations/sql"
 
-getMigrationScriptNamesImpl :: Monad m => ( FilePath -> m [ FilePath ] ) -> m [ FilePath ]
+getMigrationScriptNamesImpl
+  :: ( Monad m, MonadError MigratumError m )
+  => ( FilePath -> m [ FilePath ] )
+  -> m [ FilePath ]
 getMigrationScriptNamesImpl readDir = readDir "./migrations/sql"

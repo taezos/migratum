@@ -8,7 +8,7 @@ import qualified Data.Text           as T
 -- colog
 import           Colog               (Severity (..))
 -- microlens
-import           Lens.Micro.Platform
+import           Lens.Micro
 
 -- ansi-terminal
 import qualified System.Console.ANSI as ANSI
