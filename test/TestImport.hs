@@ -1,6 +1,7 @@
 {-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE InstanceSigs               #-}
+{-# LANGUAGE MultiParamTypeClasses      #-}
 module TestImport
   ( module X
   , TestAppM(..)
@@ -33,7 +34,7 @@ newtype TestAppM a
 
 mkTestDirEff :: MonadState ( M.Map Text Text ) m => FilePath -> m MigratumResponse
 mkTestDirEff fp = modify ( M.insert ( filePathToTxt fp ) "" )
-  >> ( pure $ GeneratedDirectory ( filePathToTxt fp ) )
+  >> ( pure $ Generated ( filePathToTxt fp ) )
 
 mkTestFileEff
   :: MonadState ( M.Map Text Text ) m
@@ -41,9 +42,9 @@ mkTestFileEff
   -> Text
   -> m MigratumResponse
 mkTestFileEff fp content = modify ( M.insert ( filePathToTxt fp ) content )
-  >> ( pure $ GeneratedFile $ filePathToTxt fp )
+  >> ( pure $ Generated $ filePathToTxt fp )
 
-instance ManageFile ( TestAppM ) where
+instance ManageFile TestAppM Text where
   genMigrationDir :: TestAppM MigratumResponse
   genMigrationDir = genMigrationDirImpl mkTestDirEff
 

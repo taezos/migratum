@@ -8,9 +8,6 @@ module Migratum where
 
 import           Import                        hiding (FilePath)
 
--- co-log
-import           Colog                         (richMessageAction)
-
 -- mtl
 import           Control.Monad.Except
 
@@ -21,20 +18,18 @@ import           Options.Applicative
 import           Migratum.Capability.File
 import           Migratum.Capability.Migration
 import           Migratum.Command
-import           Migratum.Env
 import           Migratum.Feedback
 import           Migratum.Logging
 
 newtype AppM m a
   = AppM
-  { unAppM :: ReaderT ( Env ( AppM m ) ) ( ExceptT MigratumError m ) a
+  { unAppM :: ( ExceptT MigratumError m ) a
   } deriving
   ( Functor
   , Applicative
   , Monad
   , MonadIO
   , MonadError MigratumError
-  , MonadReader ( Env ( AppM m ) )
   )
 
 startApp :: IO ()
@@ -42,20 +37,14 @@ startApp = do
   comm <- liftIO $ showHelpOnErrorExecParser
     ( info ( helper <*> parseCommand )
       ( fullDesc <> progDesc migratumDesc <> header migratumHeader ))
-  res <- runExceptT $ runApp migratumEnv comm
+  res <- runExceptT $ runApp comm
   either ( logError . show ) ( traverse_ ( logInfo . show ) ) res
-
-migratumEnv :: MonadIO m => Env ( AppM m )
-migratumEnv = Env
-  { envLogAction = richMessageAction
-  }
 
 runApp
   :: MonadIO m
-  => Env ( AppM m )
-  -> Command
+  => Command
   -> ExceptT MigratumError m [ MigratumResponse ]
-runApp env comm = runReaderT ( unAppM $ interpretCli comm ) env
+runApp comm = unAppM $ interpretCli comm
 
 interpretCli :: MonadIO m => Command -> AppM m [ MigratumResponse ]
 interpretCli comm = case comm of

@@ -39,7 +39,6 @@ library
                      , Migratum.Command
                      , Migratum.Feedback
                      , Migratum.Config
-                     , Migratum.Env
                      , Migratum.Logging
                      , Migratum.Template
                      , Migratum.Capability.File
@@ -57,8 +56,6 @@ library
                      , ansi-terminal
                      , microlens
                      , microlens-th
-                     , co-log
-                     , co-log-core
                      , aeson
                      , casing
                      , hasql

@@ -5,8 +5,6 @@ import           Import
 -- text
 import qualified Data.Text           as T
 
--- colog
-import           Colog               (Severity (..))
 -- microlens
 import           Lens.Micro
 
@@ -22,6 +20,11 @@ data Log = Log
   { _logReason :: Severity
   , _logMsg    :: LogMessage
   } deriving ( Eq, Show )
+
+data Severity
+  = Info
+  | Error
+  deriving ( Eq, Show )
 
 logMessageHeader :: Lens' LogMessage Text
 logMessageHeader = lens _logMessageHeader
@@ -48,7 +51,6 @@ mkLog reason msg = do
     mkHeader res = case res of
       Info  -> "[Info]: "
       Error -> "[Error]: "
-      _     -> mempty
 
 logInfo :: MonadIO m => Text -> m ()
 logInfo msg = terminalLog =<< mkLog Info msg
@@ -67,4 +69,3 @@ terminalLog logDesc = do
     reasonToColor sev = case sev of
       Info  -> ANSI.Green
       Error -> ANSI.Red
-      _     -> ANSI.Blue

@@ -13,8 +13,8 @@ spec = do
           fileRes <- genMigrationConfig
           pure [ dirRes, sqlDir, fileRes ]
         expected =
-          [ GeneratedDirectory "./migrations"
-          , GeneratedDirectory "./migrations/sql"
-          , GeneratedFile "./migrations/migratum.yaml"
+          [ Generated "./migrations"
+          , Generated "./migrations/sql"
+          , Generated "./migrations/migratum.yaml"
           ]
       shouldBe result ( Right expected )
