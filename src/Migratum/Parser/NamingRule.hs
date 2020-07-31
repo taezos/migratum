@@ -40,7 +40,7 @@ parseHandler res =  case res of
 
 parseNamingConvention :: String -> Either ParseError FilenameStructure
 parseNamingConvention =
-  Parsec.parse namingConventionParser "Not Following naming convention"
+  Parsec.parse namingConventionParser "Not following naming rules"
 
 filenameStructureVersion :: Lens' FilenameStructure Text
 filenameStructureVersion = lens _filenameStructureVersion
