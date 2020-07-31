@@ -5,8 +5,8 @@ import (
   pkgs.fetchFromGitHub {
     owner = "nixos";
     repo = "nixpkgs";
-    rev = "6667f47c5bdd7939b6fbabf5831d2a00d453bbc4";
-    sha256 = "1fc743z1aab9c6wx8ayk56isrs5jxra5hm027pz13jlnryida0qs";
+    rev = "ccd458053b0eaf66c1f639ee1396248d8f4431e2";
+    sha256 = "1qwnmmb2p7mj1h1ffz1wvkr1v55qbhzvxr79i3a15blq622r4al9";
   }
 )
-# https://github.com/NixOS/nixpkgs/archive/6667f47c5bdd7939b6fbabf5831d2a00d453bbc4.tar.gz
+# https://github.com/NixOS/nixpkgs/archive/ccd458053b0eaf66c1f639ee1396248d8f4431e2.tar.gz

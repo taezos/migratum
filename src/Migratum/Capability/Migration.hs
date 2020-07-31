@@ -18,8 +18,7 @@ import           Data.List                     (nub)
 import           Data.List.Extra               (anySame)
 
 -- parsec
-import           Text.ParserCombinators.Parsec (GenParser, ParseError)
-import qualified Text.ParserCombinators.Parsec as Parsec
+import           Text.ParserCombinators.Parsec (ParseError)
 
 -- text
 import qualified Data.Text                     as T
@@ -33,7 +32,6 @@ import           Data.Yaml
 
 -- microlens
 import           Lens.Micro
-import           Lens.Micro.TH
 
 -- turtle
 import           Turtle                        (FilePath)
@@ -54,6 +52,7 @@ import           Hasql.Migration
 
 -- migratum
 import           Migratum.Feedback
+import           Migratum.Parser.NamingRule
 
 class MonadError MigratumError m => ManageMigration m v | m -> v where
   initializeMigration :: Config -> m MigratumResponse
@@ -84,7 +83,13 @@ data MigratumScript = MigratumScript
   , _migratumScriptFilePath :: String
   } deriving ( Eq, Show )
 
-makeLenses ''MigratumScript
+migratumScriptFileName :: Lens' MigratumScript String
+migratumScriptFileName = lens _migratumScriptFileName
+  (\s newFileName -> s { _migratumScriptFileName = newFileName })
+
+migratumScriptFilePath :: Lens' MigratumScript String
+migratumScriptFilePath = lens _migratumScriptFilePath
+  (\s newFilePath -> s { _migratumScriptFilePath = newFilePath })
 
 runMigratumMigrationImpl
   :: ( MonadIO m, MonadError MigratumError m )
@@ -203,63 +208,3 @@ mkConnectionSettings MigrationConfig{..} = Connection.settings
   ( TE.encodeUtf8 _migrationConfigPostgresPassword )
   ( TE.encodeUtf8 _migrationConfigPostgresDb )
 
--- * Naming convention parsing
-data FilenameStructure = FilenameStructure
-  { _filenameStructureVersion :: Text
-  , _filenameStructureName    :: Text
-  , _filenameStructureExt     :: Text
-  } deriving ( Eq, Show )
-
-toFilePath :: FilenameStructure -> FilePath
-toFilePath FilenameStructure {..} = Turtle.fromText
-  $ _filenameStructureVersion
-  <> _filenameStructureName
-  <> _filenameStructureExt
-
-vCharParser :: GenParser Char st Char
-vCharParser = Parsec.char 'V'
-
-versionNumParser :: GenParser Char st String
-versionNumParser = Parsec.many Parsec.digit
-
-underScoreParser :: GenParser Char st Char
-underScoreParser = Parsec.char '_'
-
-fileNameParser :: GenParser Char st String
-fileNameParser = Parsec.many ( Parsec.satisfy isFileName )
-  where
-    isFileName :: Char -> Bool
-    isFileName char = any
-      ( char== )
-      ( "abcdefghijklmnopqrstuvwxyz1234567890_" :: String )
-
-sqlExtParser :: GenParser Char st String
-sqlExtParser = do
-  dot <- Parsec.char '.'
-  ext <- Parsec.string "sql"
-  pure $ ( dot : [] ) <> ext
-
-namingConventionParser :: GenParser Char st FilenameStructure
-namingConventionParser = do
-  v <- vCharParser
-  vNum <- versionNumParser
-  u1 <- underScoreParser
-  u2 <- underScoreParser
-  name <- fileNameParser
-  ext <- sqlExtParser
-  pure $ FilenameStructure
-    ( T.pack $ ( v : []) <> vNum <> ( u1 : u2 : [] ) )
-    ( T.pack name )
-    ( T.pack ext )
-
-parseNamingConvention :: String -> Either ParseError FilenameStructure
-parseNamingConvention =
-  Parsec.parse namingConventionParser "Not Following naming convention"
-
-parseHandler
-  :: MonadError MigratumError m
-  => Either ParseError FilenameStructure
-  -> m String
-parseHandler res =  case res of
-  Left err -> throwError $ MigratumError $ show err
-  Right r  -> pure $ Turtle.encodeString $ toFilePath r
