@@ -9,9 +9,6 @@ module Migratum where
 -- optparse-applicative
 import           Options.Applicative
 
--- hasql
-import           Hasql.Migration
-
 -- turtle
 import           Turtle                        (FilePath)
 
@@ -77,11 +74,7 @@ instance MonadIO m => ManageMigration ( AppM m ) MigratumResponse where
   readMigrationConfig = readMigrationConfigBase readFileEff
 
   runMigratumMigration :: Config -> [ FilePath ] -> AppM m [ MigratumResponse ]
-  runMigratumMigration = runMigratumMigrationBase
-    acquireConnectionImpl
-    checkDup
-    (\scriptName path -> liftIO $ loadMigrationFromFile scriptName path )
-    runTransaction
+  runMigratumMigration = runMigratumMigrationBase runMigrationFns
 
   initializeMigration :: Config -> AppM m MigratumResponse
   initializeMigration config = initializeMigrationBase

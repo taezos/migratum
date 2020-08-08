@@ -92,21 +92,33 @@ type LoadMigrationFromFileFn m = ScriptName -> String -> m MigrationCommand
 type RunTransactionFn m a = Connection -> Transaction a -> m ( Either QueryError a )
 type AcquireConnectionFn m = Settings -> m ( Either ConnectionError Connection )
 
+data RunMigrationFn m = RunMigrationFn
+  { checkDupFn :: [ MigratumScript ] -> m [ MigratumScript ]
+  , loadMigrationFromFileFn :: ScriptName -> String -> m MigrationCommand
+  , acquireConnectionFn ::  Settings -> m ( Either ConnectionError Connection )
+  , runTransactionFn :: Connection -> Transaction ( Maybe MigrationError ) -> m ( Either QueryError ( Maybe MigrationError ) )
+  }
+
+runMigrationFns :: ( MonadIO m, MonadError MigratumError m ) => RunMigrationFn m
+runMigrationFns = RunMigrationFn
+  { checkDupFn = checkDupImpl
+  , loadMigrationFromFileFn = (\scriptName filePath -> liftIO $ loadMigrationFromFile scriptName filePath )
+  , acquireConnectionFn = acquireConnectionImpl
+  , runTransactionFn = runTransaction
+  }
+
 runMigratumMigrationBase
   :: MonadError MigratumError m
-  => AcquireConnectionFn m
-  -> CheckDuplicateFn m
-  -> LoadMigrationFromFileFn m
-  -> RunTransactionFn m ( Maybe MigrationError )
+  => RunMigrationFn m
   -> Config
   -> [ FilePath ]
   -> m [ MigratumResponse ]
-runMigratumMigrationBase acquireConnection checkDupFn loadMigrationFromFileFn runTransactionFn Config{..} scriptNames = do
+runMigratumMigrationBase RunMigrationFn{..} Config{..} scriptNames = do
   -- acquiring connection
   conn <- either
     ( const $ throwError NoConfig )
     pure
-    =<< ( acquireConnection $ mkConnectionSettings _configMigrationConfig )
+    =<< ( acquireConnectionFn $ mkConnectionSettings _configMigrationConfig )
 
   -- validating the file names of the script if they are following the
   -- established naming convention.
@@ -214,11 +226,11 @@ acquireConnectionImpl
   -> m ( Either ConnectionError Connection )
 acquireConnectionImpl = liftIO . Connection.acquire
 
-checkDup
+checkDupImpl
   :: MonadError MigratumError m
   => [ MigratumScript ]
   -> m [ MigratumScript ]
-checkDup ms = do
+checkDupImpl ms = do
   versions <- traverse namingConventionHandler
     $ (\s -> s ^. migratumScriptFileName & parseNamingConvention)
     <$> ms
