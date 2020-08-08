@@ -80,7 +80,7 @@ genSqlMigrationDirImpl
 genSqlMigrationDirImpl createDirEff = createDirEff "./migrations/sql"
 
 getMigrationScriptNamesImpl
-  :: ( Monad m, MonadError MigratumError m )
+  :: MonadError MigratumError m
   => ( FilePath -> m [ FilePath ] )
   -> m [ FilePath ]
 getMigrationScriptNamesImpl readDir = readDir "./migrations/sql"

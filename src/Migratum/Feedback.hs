@@ -1,19 +1,18 @@
 {-# LANGUAGE DeriveGeneric #-}
 module Migratum.Feedback where
 
-import           Import      hiding (FilePath, show)
+-- 
+import           Data.Aeson
+import           Text.Casing (quietSnake)
 
 -- base
 import           Text.Show
 
--- aeson
-import           Data.Aeson
+-- migratum
+import           Import      hiding (FilePath, show)
 
 -- text
 import qualified Data.Text   as T
-
--- casing
-import           Text.Casing (quietSnake)
 
 data MigratumError
   = NoConfig

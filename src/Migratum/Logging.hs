@@ -1,15 +1,14 @@
 module Migratum.Logging where
 
+-- 
+import           Lens.Micro
+import qualified System.Console.ANSI as ANSI
+
+-- migratum
 import           Import
 
 -- text
 import qualified Data.Text           as T
-
--- microlens
-import           Lens.Micro
-
--- ansi-terminal
-import qualified System.Console.ANSI as ANSI
 
 data LogMessage = LogMessage
   { _logMessageText   :: Text

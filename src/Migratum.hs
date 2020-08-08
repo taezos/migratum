@@ -6,20 +6,25 @@
 {-# LANGUAGE TypeApplications           #-}
 module Migratum where
 
-import           Import                        hiding (FilePath)
-
--- mtl
-import           Control.Monad.Except
-
 -- optparse-applicative
 import           Options.Applicative
 
+-- hasql
+import           Hasql.Migration
+
+-- turtle
+import           Turtle                        (FilePath)
+
 -- migratum
+import           Import                        hiding (FilePath)
 import           Migratum.Capability.File
 import           Migratum.Capability.Migration
 import           Migratum.Command
 import           Migratum.Feedback
 import           Migratum.Logging
+
+-- mtl
+import           Control.Monad.Except
 
 newtype AppM m a
   = AppM
@@ -68,6 +73,18 @@ instance MonadIO m => ManageFile ( AppM m ) MigratumResponse where
   getMigrationScriptNames = getMigrationScriptNamesImpl readDirEff
 
 instance MonadIO m => ManageMigration ( AppM m ) MigratumResponse where
+  readMigrationConfig :: AppM m Config
   readMigrationConfig = readMigrationConfigImpl readFileEff
+
+  runMigratumMigration :: Config -> [ FilePath ] -> AppM m [ MigratumResponse ]
   runMigratumMigration = runMigratumMigrationImpl
-  initializeMigration config = initializeMigrationImpl config
+    acquireConnectionImpl
+    checkDup
+    (\scriptName path -> liftIO $ loadMigrationFromFile scriptName path )
+    runTransaction
+
+  initializeMigration :: Config -> AppM m MigratumResponse
+  initializeMigration config = initializeMigrationImpl
+    acquireConnectionImpl
+    runTransaction
+    config

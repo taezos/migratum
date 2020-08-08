@@ -1,9 +1,10 @@
 module Migratum.Command where
 
-import           Import
-
--- optparse-applicative
+-- 
 import           Options.Applicative
+
+-- migratum
+import           Import
 
 data Command
   = CommandNew

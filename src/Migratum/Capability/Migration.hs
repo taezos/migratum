@@ -39,7 +39,8 @@ import qualified Turtle
 import qualified Turtle.Prelude                as TP
 
 -- hasql
-import           Hasql.Connection              (Connection, Settings)
+import           Hasql.Connection              (Connection, ConnectionError,
+                                                Settings)
 import qualified Hasql.Connection              as Connection
 import           Hasql.Session                 (QueryError)
 import qualified Hasql.Session                 as Session
@@ -61,13 +62,13 @@ class MonadError MigratumError m => ManageMigration m v | m -> v where
 
 readFileEff :: ( MonadIO m, MonadError MigratumError m ) => FilePath -> m Text
 readFileEff filePath = do
-  isExists <- TP.testfile filePath
+  isExists <-  TP.testfile filePath
   if isExists
   then liftIO $ TP.readTextFile filePath
   else throwError FileMissing
 
 readMigrationConfigImpl
-  :: ( Monad m, MonadError MigratumError m )
+  :: MonadError MigratumError m
   => ( FilePath -> m Text )
   -> m Config
 readMigrationConfigImpl readEff = do
@@ -91,33 +92,43 @@ migratumScriptFilePath :: Lens' MigratumScript String
 migratumScriptFilePath = lens _migratumScriptFilePath
   (\s newFilePath -> s { _migratumScriptFilePath = newFilePath })
 
+type CheckDuplicateFn m = [ MigratumScript ] -> m [ MigratumScript ]
+type LoadMigrationFromFileFn m = ScriptName -> String -> m MigrationCommand
+type RunTransactionFn m a = Connection -> Transaction a -> m ( Either QueryError a )
+type AcquireConnectionFn m = Settings -> m ( Either ConnectionError Connection )
+
+data RunMigrationEnv = RunMigrationEnv
+  { runMigratinEnvAcquireConnectionFn :: forall m. AcquireConnectionFn m
+  }
+
 runMigratumMigrationImpl
-  :: ( MonadIO m, MonadError MigratumError m )
-  => Config
+  :: MonadError MigratumError m
+  => AcquireConnectionFn m
+  -> CheckDuplicateFn m
+  -> LoadMigrationFromFileFn m
+  -> RunTransactionFn m ( Maybe MigrationError )
+  -> Config
   -> [ FilePath ]
   -> m [ MigratumResponse ]
-runMigratumMigrationImpl Config{..} scriptNames = do
+runMigratumMigrationImpl acquireConnection checkDupFn loadMigrationFromFileFn runTransactionFn Config{..} scriptNames = do
   conn <- either
     ( const $ throwError NoConfig )
     pure
-    =<< ( liftIO $ Connection.acquire $ mkConnectionSettings _configMigrationConfig )
+    =<< ( acquireConnection $ mkConnectionSettings _configMigrationConfig )
 
   validatedMigratumScripts <- sequence
     $ validateMigratumScript
     <$> ( scriptNameToMigratumScript <$> ( sort scriptNames ) )
 
+  scriptsCheckedForDup <- checkDupFn validatedMigratumScripts
 
-  scriptsCheckedForDup <- checkDup validatedMigratumScripts
-
-  migrationScripts <- liftIO
-    $ sequence $
-    (\MigratumScript{..} -> loadMigrationFromFile
+  migrationScripts <- sequence
+    $ (\MigratumScript{..} -> loadMigrationFromFileFn
         _migratumScriptFileName
         _migratumScriptFilePath
     ) <$> scriptsCheckedForDup
 
-
-  res <- traverse ( runTransaction conn )
+  res <- traverse ( runTransactionFn conn )
     $ runMigration
     <$> migrationScripts
 
@@ -125,7 +136,7 @@ runMigratumMigrationImpl Config{..} scriptNames = do
 
   where
     resHandler
-      :: ( Monad m, MonadError MigratumError m )
+      :: ( MonadError MigratumError m )
       => MigratumScript
       -> Either QueryError ( Maybe MigrationError )
       -> m MigratumResponse
@@ -145,7 +156,10 @@ runMigratumMigrationImpl Config{..} scriptNames = do
       ( Turtle.encodeString $ Turtle.filename fp )
       ( Turtle.encodeString fp )
 
-    validateMigratumScript :: MonadError MigratumError m => MigratumScript -> m MigratumScript
+    validateMigratumScript
+      :: MonadError MigratumError m
+      => MigratumScript
+      -> m MigratumScript
     validateMigratumScript ms = do
       newFilename <-  ms
         ^. migratumScriptFileName
@@ -153,36 +167,26 @@ runMigratumMigrationImpl Config{..} scriptNames = do
         . parseNamingConvention
       pure $ ms & migratumScriptFileName .~ newFilename
 
-    checkDup
-      :: ( MonadError MigratumError m, MonadIO m )
-      => [ MigratumScript ]
-      -> m [ MigratumScript ]
-    checkDup ms = do
-      versions <- traverse namingCoventionHandler
-        $ (\s -> s ^. migratumScriptFileName & parseNamingConvention)
-        <$> ms
-      if anySame versions
-        then throwError $ MigratumError "Duplicate migration file"
-        else pure ms
-
-    namingCoventionHandler
-      :: MonadError MigratumError m
-      => Either ParseError FilenameStructure
-      -> m Text
-    namingCoventionHandler res = case res of
-      Left err -> throwError $ MigratumError $ show err
-      Right r  -> pure $ _filenameStructureVersion r
+namingConventionHandler
+  :: MonadError MigratumError m
+  => Either ParseError FilenameStructure
+  -> m Text
+namingConventionHandler res = case res of
+  Left err -> throwError $ MigratumError $ show err
+  Right r  -> r ^. filenameStructureVersion & pure
 
 initializeMigrationImpl
-  :: ( MonadIO m, MonadError MigratumError m )
-  => Config
+  :: MonadError MigratumError m
+  => AcquireConnectionFn m
+  -> RunTransactionFn m ( Maybe MigrationError )
+  -> Config
   -> m MigratumResponse
-initializeMigrationImpl Config{..} = do
+initializeMigrationImpl acquireConnection runTransactionFn Config{..} = do
   conn <- either
     ( const $ throwError NoConfig )
     pure
-    =<< ( liftIO $ Connection.acquire $ mkConnectionSettings _configMigrationConfig )
-  res <- runTransaction conn $ runMigration MigrationInitialization
+    =<< ( acquireConnection $ mkConnectionSettings _configMigrationConfig )
+  res <- runTransactionFn conn $ runMigration MigrationInitialization
   case res of
     Left err -> throwError . MigratumError $ show err
     Right mig -> maybe
@@ -208,3 +212,17 @@ mkConnectionSettings MigrationConfig{..} = Connection.settings
   ( TE.encodeUtf8 _migrationConfigPostgresPassword )
   ( TE.encodeUtf8 _migrationConfigPostgresDb )
 
+acquireConnectionImpl :: MonadIO m => Settings -> m ( Either ConnectionError Connection )
+acquireConnectionImpl = liftIO . Connection.acquire
+
+checkDup
+  :: ( MonadError MigratumError m, MonadIO m )
+  => [ MigratumScript ]
+  -> m [ MigratumScript ]
+checkDup ms = do
+  versions <- traverse namingConventionHandler
+    $ (\s -> s ^. migratumScriptFileName & parseNamingConvention)
+    <$> ms
+  if anySame versions
+    then throwError $ MigratumError "Duplicate migration file"
+    else pure ms

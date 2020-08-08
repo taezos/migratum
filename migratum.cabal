@@ -56,7 +56,6 @@ library
                      , yaml
                      , ansi-terminal
                      , microlens
-                     , microlens-th
                      , aeson
                      , casing
                      , hasql

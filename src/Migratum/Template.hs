@@ -1,5 +1,6 @@
 module Migratum.Template where
 
+-- migratum
 import           Import
 
 migratumConfig :: Text

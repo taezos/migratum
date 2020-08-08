@@ -42,18 +42,6 @@ parseNamingConvention :: String -> Either ParseError FilenameStructure
 parseNamingConvention =
   Parsec.parse namingConventionParser "Not following naming rules"
 
-filenameStructureVersion :: Lens' FilenameStructure Text
-filenameStructureVersion = lens _filenameStructureVersion
-  (\s newVersion -> s { _filenameStructureVersion = newVersion })
-
-filenameStructureName :: Lens' FilenameStructure Text
-filenameStructureName = lens _filenameStructureName
-  (\s newName -> s { _filenameStructureName = newName })
-
-filenameStructureExt :: Lens' FilenameStructure Text
-filenameStructureExt = lens _filenameStructureExt
-  (\s newExt -> s { _filenameStructureExt = newExt })
-
 toFilePath :: FilenameStructure -> FilePath
 toFilePath FilenameStructure {..} = Turtle.fromText
   $ _filenameStructureVersion
@@ -96,3 +84,16 @@ namingConventionParser = do
     ( T.pack name )
     ( T.pack ext )
 
+-- * Lens
+filenameStructureVersion :: Lens' FilenameStructure Text
+filenameStructureVersion = lens
+  _filenameStructureVersion
+  (\s newVersion -> s { _filenameStructureVersion = newVersion })
+
+filenameStructureName :: Lens' FilenameStructure Text
+filenameStructureName = lens _filenameStructureName
+  (\s newName -> s { _filenameStructureName = newName })
+
+filenameStructureExt :: Lens' FilenameStructure Text
+filenameStructureExt = lens _filenameStructureExt
+  (\s newExt -> s { _filenameStructureExt = newExt })
