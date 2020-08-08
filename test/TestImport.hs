@@ -1,3 +1,4 @@
+{-# LANGUAGE DerivingStrategies         #-}
 {-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE InstanceSigs               #-}
@@ -24,7 +25,7 @@ import qualified Turtle
 newtype TestAppM a
   = TestAppM
   { runTestM :: ( ExceptT MigratumError ( State ( M.Map Text Text ) ) ) a
-  } deriving
+  } deriving newtype
   ( Functor
   , Applicative
   , Monad
@@ -44,6 +45,9 @@ mkTestFileEff
 mkTestFileEff fp content = modify ( M.insert ( filePathToTxt fp ) content )
   >> ( pure $ Generated $ filePathToTxt fp )
 
+readDirTest :: Monad m => FilePath -> m [ FilePath ]
+readDirTest _ = pure []
+
 instance ManageFile TestAppM Text where
   genMigrationDir :: TestAppM MigratumResponse
   genMigrationDir = genMigrationDirImpl mkTestDirEff
@@ -53,6 +57,8 @@ instance ManageFile TestAppM Text where
 
   genMigrationConfig :: TestAppM MigratumResponse
   genMigrationConfig = genMigrationConfigImpl mkTestFileEff
+
+  getMigrationScriptNames = getMigrationScriptNamesImpl readDirTest
 
 filePathToTxt :: FilePath -> Text
 filePathToTxt = either id id . Turtle.toText
