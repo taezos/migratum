@@ -71,6 +71,9 @@ readMigrationConfigBase readEff = do
     ( decodeEither'
       $ encodeUtf8 config :: Either ParseException Config )
 
+-- | the fields are string because these fields are parsed and validated, and is
+-- easier to manipulate as strings, rather than convert back and forth between
+-- String and Text
 data MigratumScript = MigratumScript
   { _migratumScriptFileName :: String
   , _migratumScriptFilePath :: String
