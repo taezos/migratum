@@ -62,7 +62,6 @@ library
                      , hasql-migration
                      , hasql-transaction
                      , parsec
-                     , extra
   default-language:    Haskell2010
   default-extensions:  NoImplicitPrelude
                      , OverloadedStrings

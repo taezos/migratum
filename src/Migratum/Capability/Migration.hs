@@ -1,21 +1,13 @@
-{-# LANGUAGE DeriveGeneric          #-}
 {-# LANGUAGE FlexibleContexts       #-}
 {-# LANGUAGE FunctionalDependencies #-}
-{-# LANGUAGE MultiParamTypeClasses  #-}
-{-# LANGUAGE RankNTypes             #-}
 {-# LANGUAGE RecordWildCards        #-}
-{-# LANGUAGE ScopedTypeVariables    #-}
-{-# LANGUAGE TemplateHaskell        #-}
-{-# LANGUAGE TypeApplications       #-}
+{-# LANGUAGE ScopedTypeVariables        #-}
 module Migratum.Capability.Migration where
 
 import           Import                        hiding (FilePath)
 
 -- base
 import           Data.List                     (nub)
-
--- extra
-import           Data.List.Extra               (anySame)
 
 -- parsec
 import           Text.ParserCombinators.Parsec (ParseError)
@@ -67,11 +59,11 @@ readFileEff filePath = do
   then liftIO $ TP.readTextFile filePath
   else throwError FileMissing
 
-readMigrationConfigImpl
+readMigrationConfigBase
   :: MonadError MigratumError m
   => ( FilePath -> m Text )
   -> m Config
-readMigrationConfigImpl readEff = do
+readMigrationConfigBase readEff = do
   config <- readEff "./migrations/migratum.yaml"
   either
     ( throwError . MigratumError . T.pack . prettyPrintParseException )
@@ -82,7 +74,7 @@ readMigrationConfigImpl readEff = do
 data MigratumScript = MigratumScript
   { _migratumScriptFileName :: String
   , _migratumScriptFilePath :: String
-  } deriving ( Eq, Show )
+  } deriving ( Eq, Show, Ord )
 
 migratumScriptFileName :: Lens' MigratumScript String
 migratumScriptFileName = lens _migratumScriptFileName
@@ -97,11 +89,7 @@ type LoadMigrationFromFileFn m = ScriptName -> String -> m MigrationCommand
 type RunTransactionFn m a = Connection -> Transaction a -> m ( Either QueryError a )
 type AcquireConnectionFn m = Settings -> m ( Either ConnectionError Connection )
 
-data RunMigrationEnv = RunMigrationEnv
-  { runMigratinEnvAcquireConnectionFn :: forall m. AcquireConnectionFn m
-  }
-
-runMigratumMigrationImpl
+runMigratumMigrationBase
   :: MonadError MigratumError m
   => AcquireConnectionFn m
   -> CheckDuplicateFn m
@@ -110,16 +98,20 @@ runMigratumMigrationImpl
   -> Config
   -> [ FilePath ]
   -> m [ MigratumResponse ]
-runMigratumMigrationImpl acquireConnection checkDupFn loadMigrationFromFileFn runTransactionFn Config{..} scriptNames = do
+runMigratumMigrationBase acquireConnection checkDupFn loadMigrationFromFileFn runTransactionFn Config{..} scriptNames = do
+  -- acquiring connection
   conn <- either
     ( const $ throwError NoConfig )
     pure
     =<< ( acquireConnection $ mkConnectionSettings _configMigrationConfig )
 
+  -- validating the file names of the script if they are following the
+  -- established naming convention.
   validatedMigratumScripts <- sequence
     $ validateMigratumScript
     <$> ( scriptNameToMigratumScript <$> ( sort scriptNames ) )
 
+  -- validating that scripts are unique.
   scriptsCheckedForDup <- checkDupFn validatedMigratumScripts
 
   migrationScripts <- sequence
@@ -136,7 +128,7 @@ runMigratumMigrationImpl acquireConnection checkDupFn loadMigrationFromFileFn ru
 
   where
     resHandler
-      :: ( MonadError MigratumError m )
+      :: MonadError MigratumError m
       => MigratumScript
       -> Either QueryError ( Maybe MigrationError )
       -> m MigratumResponse
@@ -151,21 +143,23 @@ runMigratumMigrationImpl acquireConnection checkDupFn loadMigrationFromFileFn ru
         ( throwError . MigratumError . show )
         mQueryError
 
-    scriptNameToMigratumScript :: FilePath -> MigratumScript
-    scriptNameToMigratumScript fp = MigratumScript
-      ( Turtle.encodeString $ Turtle.filename fp )
-      ( Turtle.encodeString fp )
+-- | creates `MigratumScript` from the `FilePath`
+scriptNameToMigratumScript :: FilePath -> MigratumScript
+scriptNameToMigratumScript fp = MigratumScript
+  ( Turtle.encodeString $ Turtle.filename fp )
+  ( Turtle.encodeString fp )
 
-    validateMigratumScript
-      :: MonadError MigratumError m
-      => MigratumScript
-      -> m MigratumScript
-    validateMigratumScript ms = do
-      newFilename <-  ms
-        ^. migratumScriptFileName
-        & parseHandler
-        . parseNamingConvention
-      pure $ ms & migratumScriptFileName .~ newFilename
+-- | validates the naming convention.
+validateMigratumScript
+  :: MonadError MigratumError m
+  => MigratumScript
+  -> m MigratumScript
+validateMigratumScript ms = do
+  newFilename <-  ms
+    ^. migratumScriptFileName
+    & parseHandler
+    . parseNamingConvention
+  pure $ ms & migratumScriptFileName .~ newFilename
 
 namingConventionHandler
   :: MonadError MigratumError m
@@ -175,13 +169,13 @@ namingConventionHandler res = case res of
   Left err -> throwError $ MigratumError $ show err
   Right r  -> r ^. filenameStructureVersion & pure
 
-initializeMigrationImpl
+initializeMigrationBase
   :: MonadError MigratumError m
   => AcquireConnectionFn m
   -> RunTransactionFn m ( Maybe MigrationError )
   -> Config
   -> m MigratumResponse
-initializeMigrationImpl acquireConnection runTransactionFn Config{..} = do
+initializeMigrationBase acquireConnection runTransactionFn Config{..} = do
   conn <- either
     ( const $ throwError NoConfig )
     pure
@@ -206,17 +200,19 @@ runTransaction conn trans = liftIO $
 mkConnectionSettings :: MigrationConfig -> Settings
 mkConnectionSettings MigrationConfig{..} = Connection.settings
   ( TE.encodeUtf8 _migrationConfigPostgresHost )
-
   _migrationConfigPostgresPort
   ( TE.encodeUtf8 _migrationConfigPostgresUser )
   ( TE.encodeUtf8 _migrationConfigPostgresPassword )
   ( TE.encodeUtf8 _migrationConfigPostgresDb )
 
-acquireConnectionImpl :: MonadIO m => Settings -> m ( Either ConnectionError Connection )
+acquireConnectionImpl
+  :: MonadIO m
+  => Settings
+  -> m ( Either ConnectionError Connection )
 acquireConnectionImpl = liftIO . Connection.acquire
 
 checkDup
-  :: ( MonadError MigratumError m, MonadIO m )
+  :: MonadError MigratumError m
   => [ MigratumScript ]
   -> m [ MigratumScript ]
 checkDup ms = do
@@ -226,3 +222,9 @@ checkDup ms = do
   if anySame versions
     then throwError $ MigratumError "Duplicate migration file"
     else pure ms
+  where
+    anySame :: Eq a => [a] -> Bool
+    anySame = f []
+      where
+        f seen ( x:xs ) = x `elem` seen || f ( x:seen ) xs
+        f _ []          = False

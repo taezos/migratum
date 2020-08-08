@@ -74,17 +74,17 @@ instance MonadIO m => ManageFile ( AppM m ) MigratumResponse where
 
 instance MonadIO m => ManageMigration ( AppM m ) MigratumResponse where
   readMigrationConfig :: AppM m Config
-  readMigrationConfig = readMigrationConfigImpl readFileEff
+  readMigrationConfig = readMigrationConfigBase readFileEff
 
   runMigratumMigration :: Config -> [ FilePath ] -> AppM m [ MigratumResponse ]
-  runMigratumMigration = runMigratumMigrationImpl
+  runMigratumMigration = runMigratumMigrationBase
     acquireConnectionImpl
     checkDup
     (\scriptName path -> liftIO $ loadMigrationFromFile scriptName path )
     runTransaction
 
   initializeMigration :: Config -> AppM m MigratumResponse
-  initializeMigration config = initializeMigrationImpl
+  initializeMigration config = initializeMigrationBase
     acquireConnectionImpl
     runTransaction
     config
