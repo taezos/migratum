@@ -14,9 +14,9 @@ import           Turtle                        (FilePath)
 
 -- migratum
 import           Import                        hiding (FilePath)
+import           Migratum.Capability.CLI
 import           Migratum.Capability.File
 import           Migratum.Capability.Migration
-import           Migratum.Command
 import           Migratum.Feedback
 import           Migratum.Logging
 
@@ -35,33 +35,32 @@ newtype AppM m a
   )
 
 startApp :: IO ()
-startApp = do
-  comm <- liftIO $ showHelpOnErrorExecParser
-    ( info ( helper <*> parseCommand )
-      ( fullDesc <> progDesc migratumDesc <> header migratumHeader ))
-  res <- runExceptT $ runApp comm
-  either ( logError . show ) ( traverse_ ( logInfo . show ) ) res
+startApp = either ( logError . show ) ( traverse_ ( logInfo . show ) )
+  =<< runExceptT runApp
 
 runApp
   :: MonadIO m
-  => Command
-  -> ExceptT MigratumError m [ MigratumResponse ]
-runApp comm = unAppM $ interpretCli comm
+  => ExceptT MigratumError m [ MigratumResponse ]
+runApp = unAppM $ interpretCliCommand =<< parseCliCommand
 
-interpretCli :: MonadIO m => Command -> AppM m [ MigratumResponse ]
-interpretCli comm = case comm of
-  CommandNew -> do
-    dirRes <- genMigrationDir
-    sqlDir <- genSqlMigrationDir
-    fileRes <- genMigrationConfig
-    pure [ dirRes, sqlDir, fileRes ]
-  CommandInit -> do
-    config <- readMigrationConfig
-    pure <$> initializeMigration config
-  CommandMigrate -> do
-    config <- readMigrationConfig
-    scriptNames <- getMigrationScriptNames
-    runMigratumMigration config scriptNames
+instance MonadIO m => ManageCLI ( AppM m ) MigratumResponse where
+  interpretCliCommand comm = case comm of
+    CommandNew -> do
+      dirRes <- genMigrationDir
+      sqlDir <- genSqlMigrationDir
+      fileRes <- genMigrationConfig
+      pure [ dirRes, sqlDir, fileRes ]
+    CommandInit -> do
+      config <- readMigrationConfig
+      pure <$> initializeMigration config
+    CommandMigrate -> do
+      config <- readMigrationConfig
+      scriptNames <- getMigrationScriptNames
+      runMigratumMigration config scriptNames
+
+  parseCliCommand = liftIO $ showHelpOnErrorExecParser
+    ( info ( helper <*> parseCommand )
+      ( fullDesc <> progDesc migratumDesc <> header migratumHeader ))
 
 instance MonadIO m => ManageFile ( AppM m ) MigratumResponse where
   genMigrationDir = genMigrationDirImpl mkDirEff

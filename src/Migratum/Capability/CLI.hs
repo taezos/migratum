@@ -1,10 +1,20 @@
-module Migratum.Command where
+{-# LANGUAGE FlexibleContexts       #-}
+{-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE MultiParamTypeClasses  #-}
+module Migratum.Capability.CLI where
 
--- 
+import           Control.Monad.Except
+
+import           Migratum.Feedback
+
 import           Options.Applicative
 
 -- migratum
 import           Import
+
+class MonadError MigratumError m => ManageCLI m v | m -> v where
+  parseCliCommand :: m Command
+  interpretCliCommand :: Command -> m [ MigratumResponse ]
 
 data Command
   = CommandNew

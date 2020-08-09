@@ -36,13 +36,13 @@ executable migratum
 
 library
   exposed-modules:     Migratum
-                     , Migratum.Command
                      , Migratum.Feedback
                      , Migratum.Config
                      , Migratum.Logging
                      , Migratum.Template
                      , Migratum.Capability.File
                      , Migratum.Capability.Migration
+                     , Migratum.Capability.CLI
                      , Migratum.Parser.NamingRule
   other-modules:       Import
   hs-source-dirs:      src
