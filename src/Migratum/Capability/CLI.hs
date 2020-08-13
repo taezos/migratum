@@ -24,7 +24,7 @@ data Command
 
 parseCommand :: Parser Command
 parseCommand = subparser $
-  ( command "new" $ parseCommandNew `withInfo` "Generate files necessary for migration" )
+  ( command "new" $ parseCommandNew `withInfo` "Generate necessary files for migration" )
   <>
   ( command "init" $ parseCommandInit `withInfo` "Initialize database for migration" )
   <>
@@ -49,4 +49,4 @@ migratumDesc :: String
 migratumDesc = "Migratum is a database tool that manages migrations"
 
 migratumHeader :: String
-migratumHeader = "migratum: migration tool"
+migratumHeader = "Migratum: PostgreSQL Migration Tool"

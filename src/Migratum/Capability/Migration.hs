@@ -64,7 +64,7 @@ readMigrationConfigBase
   => ( FilePath -> m Text )
   -> m Config
 readMigrationConfigBase readEff = do
-  config <- readEff "./migrations/migratum.yaml"
+  config <- readEff "migrations/migratum.yaml"
   either
     ( throwError . MigratumError . T.pack . prettyPrintParseException )
     pure
