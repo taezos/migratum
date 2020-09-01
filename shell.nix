@@ -7,7 +7,7 @@ let
 in
 pkgs.stdenv.mkDerivation {
   name = "migratum";
-  buildInputs = project.env.buildInputs ++ [
+  buildInputs = project.env.nativeBuildInputs ++ [
     haskellPackages.cabal-install
     haskellPackages.ghc
     haskellPackages.ghcid
