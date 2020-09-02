@@ -18,8 +18,14 @@ import           Turtle.Shell         (FoldShell (..))
 import qualified Turtle.Shell         as TS
 
 -- migratum
+import           Migratum.ConnectInfo
 import           Migratum.Feedback
-import           Migratum.Template
+
+-- yaml
+import qualified Data.Yaml            as Y
+
+-- text
+import qualified Data.Text.Encoding   as TE
 
 class MonadError MigratumError m => ManageFile m v | m -> v where
   genMigrationDir :: m MigratumResponse
@@ -70,7 +76,7 @@ genMigrationConfigImpl
   => ( FilePath -> Text -> m MigratumResponse )
   -> m MigratumResponse
 genMigrationConfigImpl createFileEff =
-  createFileEff "./migrations/migratum.yaml" migratumConfig
+  createFileEff "./migrations/migratum.yaml" ( TE.decodeUtf8 $ Y.encode defaultMigratumConfig )
 
 genSqlMigrationDirImpl
   :: Monad m =>

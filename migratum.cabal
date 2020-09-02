@@ -39,7 +39,7 @@ library
                      , Migratum.Feedback
                      , Migratum.Config
                      , Migratum.Logging
-                     , Migratum.Template
+                     , Migratum.ConnectInfo
                      , Migratum.Capability.File
                      , Migratum.Capability.Migration
                      , Migratum.Capability.CLI
@@ -56,7 +56,6 @@ library
                      , yaml
                      , ansi-terminal
                      , microlens
-                     , aeson
                      , casing
                      , hasql
                      , hasql-migration
