@@ -16,6 +16,10 @@ import           Text.Casing   (snake)
 -- microlens
 import           Lens.Micro
 
+-- yaml
+import           Data.Yaml     (ParseException)
+import qualified Data.Yaml     as Y
+
 defaultMigratumConfig :: MigratumConnect
 defaultMigratumConfig = MigratumConnect $ MigratumConnectInfo
   mempty
@@ -23,6 +27,9 @@ defaultMigratumConfig = MigratumConnect $ MigratumConnectInfo
   mempty
   mempty
   mempty
+
+decodeMigratumConfig :: ByteString -> Either ParseException MigratumConnect
+decodeMigratumConfig = Y.decodeEither'
 
 data MigratumConnect = MigratumConnect
   { _migratumConnectConfig :: MigratumConnectInfo
