@@ -1,12 +1,7 @@
 { nixpkgs ? import ./nix/pinned.nix {} }:
 let
   inherit ( nixpkgs ) pkgs;
-
-  haskellPackages = pkgs.haskellPackages.override {
-    overrides = self: super: with pkgs.haskell.lib; {
-      hasql-migration = doJailbreak(unmarkBroken super.hasql-migration);
-    };
-  };
+  inherit ( pkgs ) haskellPackages;
 
   project = haskellPackages.callPackage ./default.nix {};
 
