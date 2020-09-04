@@ -93,7 +93,7 @@ type RunTransactionFn m a = Connection -> Transaction a -> m ( Either QueryError
 type AcquireConnectionFn m = Settings -> m ( Either ConnectionError Connection )
 
 data RunMigrationFn m = RunMigrationFn
-  { checkDupFn :: [ MigratumScript ] -> m [ MigratumScript ]
+  { checkDuplicateFn :: [ MigratumScript ] -> m [ MigratumScript ]
   , loadMigrationFromFileFn :: ScriptName -> String -> m MigrationCommand
   , acquireConnectionFn ::  Settings -> m ( Either ConnectionError Connection )
   , runTransactionFn :: Connection -> Transaction ( Maybe MigrationError ) -> m ( Either QueryError ( Maybe MigrationError ) )
@@ -101,7 +101,7 @@ data RunMigrationFn m = RunMigrationFn
 
 runMigrationFns :: ( MonadIO m, MonadError MigratumError m ) => RunMigrationFn m
 runMigrationFns = RunMigrationFn
-  { checkDupFn = checkDupImpl
+  { checkDuplicateFn = checkDuplicateImpl
   , loadMigrationFromFileFn = (\scriptName filePath -> liftIO $ loadMigrationFromFile scriptName filePath )
   , acquireConnectionFn = acquireConnectionImpl
   , runTransactionFn = runTransaction
@@ -127,7 +127,7 @@ runMigratumMigrationBase RunMigrationFn{..} Config{..} scriptNames = do
     <$> ( scriptNameToMigratumScript <$> ( sort scriptNames ) )
 
   -- validating that scripts are unique.
-  scriptsCheckedForDup <- checkDupFn validatedMigratumScripts
+  scriptsCheckedForDup <- checkDuplicateFn validatedMigratumScripts
 
   migrationScripts <- sequence
     $ (\MigratumScript{..} -> loadMigrationFromFileFn
@@ -176,13 +176,13 @@ validateMigratumScript ms = do
     . parseNamingConvention
   pure $ ms & migratumScriptFileName .~ newFilename
 
-namingConventionHandler
+getVersion
   :: MonadError MigratumError m
   => Either ParseError FilenameStructure
-  -> m Text
-namingConventionHandler res = case res of
+  -> m FileVersion
+getVersion res = case res of
   Left err -> throwError $ MigratumError $ show err
-  Right r  -> r ^. filenameStructureVersion & pure
+  Right r -> pure $ fileVersion r
 
 initializeMigrationBase
   :: MonadError MigratumError m
@@ -226,20 +226,22 @@ acquireConnectionImpl
   -> m ( Either ConnectionError Connection )
 acquireConnectionImpl = liftIO . Connection.acquire
 
-checkDupImpl
+checkDuplicateImpl
   :: MonadError MigratumError m
   => [ MigratumScript ]
   -> m [ MigratumScript ]
-checkDupImpl ms = do
-  versions <- traverse namingConventionHandler
-    $ (\s -> s ^. migratumScriptFileName & parseNamingConvention)
+checkDuplicateImpl ms = do
+  versions <- traverse getVersion
+    $ (\s -> s ^. migratumScriptFileName & parseNamingConvention )
     <$> ms
   if anySame versions
     then throwError $ MigratumError "Duplicate migration file"
     else pure ms
   where
-    anySame :: Eq a => [a] -> Bool
+    anySame :: Eq a => [ a ] -> Bool
     anySame = f []
-      where
-        f seen ( x:xs ) = x `elem` seen || f ( x:seen ) xs
-        f _ []          = False
+   
+    f :: Eq a => [a] -> [a] -> Bool
+    f seen ( x:xs ) = x `elem` seen || f ( x:seen ) xs
+    f _ [] = False
+
