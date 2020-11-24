@@ -17,6 +17,7 @@ import           Import                        hiding (FilePath)
 import           Migratum.Capability.CLI
 import           Migratum.Capability.File
 import           Migratum.Capability.Migration
+import           Migratum.Config
 import           Migratum.Feedback
 import           Migratum.Logging
 

@@ -45,6 +45,7 @@ import           Hasql.Migration
 
 -- migratum
 import           Migratum.Feedback
+import           Migratum.Config
 import           Migratum.Parser.NamingRule
 
 class MonadError MigratumError m => ManageMigration m v | m -> v where

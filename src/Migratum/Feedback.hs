@@ -1,18 +1,15 @@
 {-# LANGUAGE DeriveGeneric #-}
 module Migratum.Feedback where
 
--- 
-import           Data.Aeson
-import           Text.Casing (quietSnake)
-
 -- base
 import           Text.Show
 
 -- migratum
-import           Import      hiding (FilePath, show)
+import           Import          hiding (FilePath, show)
+import           Migratum.Config
 
 -- text
-import qualified Data.Text   as T
+import qualified Data.Text       as T
 
 data MigratumError
   = NoConfig
@@ -33,26 +30,6 @@ instance Show MigratumError where
   show DirectoryAlreadyExists   = "DirectoryAlreadyExists"
   show FileMissing              = "FileMissing"
   show ( MigratumError errMsg ) = "MigratumError " <> T.unpack errMsg
-
-data Config = Config
-  { _configMigrationConfig :: MigrationConfig
-  } deriving ( Eq, Show, Generic )
-
-instance FromJSON Config where
-  parseJSON = genericParseJSON
-    defaultOptions { fieldLabelModifier = quietSnake . drop 16 }
-
-data MigrationConfig = MigrationConfig
-  { _migrationConfigPostgresPassword :: Text
-  , _migrationConfigPostgresDb       :: Text
-  , _migrationConfigPostgresUser     :: Text
-  , _migrationConfigPostgresHost     :: Text
-  , _migrationConfigPostgresPort     :: Word16
-  } deriving ( Eq, Show, Generic )
-
-instance FromJSON MigrationConfig where
-  parseJSON = genericParseJSON
-    defaultOptions { fieldLabelModifier = quietSnake . drop 16 }
 
 newtype MigratumFilename = MigratumFilename Text
   deriving ( Eq, Show )
