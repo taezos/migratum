@@ -6,9 +6,6 @@ import           Migratum.Capability.Migration
 import           Migratum.ConnectInfo
 import           TestImport
 
--- lens
-import           Control.Lens.Operators
-
 -- yaml
 import qualified Data.Yaml     as Y
 
@@ -42,36 +39,22 @@ spec = do
         Nothing -> fail "cannot decode config file"
         Just config -> do
           shouldBe
-            ( config
-              ^. migratumConnectConfig
-              . migratumConnectInfoPostgresPassword
-            )
+            ( migratumConnectInfoPostgresPassword
+              . migratumConnectConfig $ config )
             "migratum"
 
           shouldBe
-            ( config
-              ^. migratumConnectConfig
-              . migratumConnectInfoPostgresDb
-            )
+            ( migratumConnectInfoPostgresDb . migratumConnectConfig $ config )
             "migratum"
 
           shouldBe
-            ( config
-              ^. migratumConnectConfig
-              . migratumConnectInfoPostgresUser
-            )
+            ( migratumConnectInfoPostgresUser . migratumConnectConfig $ config )
             "migratum"
 
           shouldBe
-            ( config
-              ^. migratumConnectConfig
-              . migratumConnectInfoPostgresHost
-            )
+            ( migratumConnectInfoPostgresHost . migratumConnectConfig $ config )
             "localhost"
 
           shouldBe
-            ( config
-              ^. migratumConnectConfig
-              . migratumConnectInfoPostgresPort
-            )
+            ( migratumConnectInfoPostgresPort . migratumConnectConfig $ config )
             5432

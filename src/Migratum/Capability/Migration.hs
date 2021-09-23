@@ -19,9 +19,6 @@ import           Control.Monad.Except
 -- yaml
 import           Data.Yaml
 
--- microlens
-import           Lens.Micro
-
 -- turtle
 import           Turtle                        (FilePath)
 import qualified Turtle
@@ -73,17 +70,9 @@ readMigrationConfigBase readEff = do
 -- easier to manipulate as strings, rather than convert back and forth between
 -- String and Text
 data MigratumScript = MigratumScript
-  { _migratumScriptFileName :: String
-  , _migratumScriptFilePath :: String
+  { migratumScriptFileName :: String
+  , migratumScriptFilePath :: String
   } deriving ( Eq, Show, Ord )
-
-migratumScriptFileName :: Lens' MigratumScript String
-migratumScriptFileName = lens _migratumScriptFileName
-  (\s newFileName -> s { _migratumScriptFileName = newFileName })
-
-migratumScriptFilePath :: Lens' MigratumScript String
-migratumScriptFilePath = lens _migratumScriptFilePath
-  (\s newFilePath -> s { _migratumScriptFilePath = newFilePath })
 
 type CheckDuplicateFn m = [ MigratumScript ] -> m [ MigratumScript ]
 type LoadMigrationFromFileFn m = ScriptName -> String -> m MigrationCommand
@@ -121,7 +110,7 @@ runMigratumMigrationBase RunMigrationFn{..} MigratumConnect{..} scriptNames = do
   conn <- either
     ( const $ throwError NoConfig )
     pure
-    =<< ( acquireConnectionFn $ mkConnectionSettings _migratumConnectConfig )
+    =<< ( acquireConnectionFn $ mkConnectionSettings migratumConnectConfig )
 
   -- validating the file names of the script if they are following the
   -- established naming convention.
@@ -134,8 +123,8 @@ runMigratumMigrationBase RunMigrationFn{..} MigratumConnect{..} scriptNames = do
 
   migrationScripts <- sequence
     $ (\MigratumScript{..} -> loadMigrationFromFileFn
-        _migratumScriptFileName
-        _migratumScriptFilePath
+        migratumScriptFileName
+        migratumScriptFilePath
     ) <$> scriptsCheckedForDup
 
   res <- traverse ( runTransactionFn conn )
@@ -158,7 +147,7 @@ runMigratumMigrationBase RunMigrationFn{..} MigratumConnect{..} scriptNames = do
           . MigrationPerformed
           . MigratumFilename
           . T.pack
-          $ _migratumScriptFileName migScript )
+          $ migratumScriptFileName migScript )
         ( throwError . MigratumError . show )
         mQueryError
 
@@ -174,11 +163,9 @@ validateMigratumScript
   => MigratumScript
   -> m MigratumScript
 validateMigratumScript ms = do
-  newFilename <-  ms
-    ^. migratumScriptFileName
-    & parseHandler
-    . parseNamingConvention
-  pure $ ms & migratumScriptFileName .~ newFilename
+  newFilename <- parseHandler
+    . parseNamingConvention $ migratumScriptFileName $ ms
+  pure $ ms { migratumScriptFileName = newFilename }
 
 getVersion
   :: MonadError MigratumError m
@@ -198,7 +185,7 @@ initializeMigrationBase acquireConnection runTransactionFn MigratumConnect{..} =
   conn <- either
     ( const $ throwError NoConfig )
     pure
-    =<< ( acquireConnection $ mkConnectionSettings _migratumConnectConfig )
+    =<< ( acquireConnection $ mkConnectionSettings migratumConnectConfig )
   res <- runTransactionFn conn $ runMigration MigrationInitialization
   case res of
     Left err -> throwError . MigratumError $ show err
@@ -218,11 +205,11 @@ runTransaction conn trans = liftIO $
 
 mkConnectionSettings :: MigratumConnectInfo -> Settings
 mkConnectionSettings MigratumConnectInfo{..} = Connection.settings
-  ( TE.encodeUtf8 _migratumConnectInfoPostgresHost )
-  _migratumConnectInfoPostgresPort
-  ( TE.encodeUtf8 _migratumConnectInfoPostgresUser )
-  ( TE.encodeUtf8 _migratumConnectInfoPostgresPassword )
-  ( TE.encodeUtf8 _migratumConnectInfoPostgresDb )
+  ( TE.encodeUtf8 migratumConnectInfoPostgresHost )
+  migratumConnectInfoPostgresPort
+  ( TE.encodeUtf8 migratumConnectInfoPostgresUser )
+  ( TE.encodeUtf8 migratumConnectInfoPostgresPassword )
+  ( TE.encodeUtf8 migratumConnectInfoPostgresDb )
 
 acquireConnectionImpl
   :: MonadIO m
@@ -236,8 +223,7 @@ checkDuplicateImpl
   -> m [ MigratumScript ]
 checkDuplicateImpl ms = do
   versions <- traverse getVersion
-    $ (\s -> s ^. migratumScriptFileName & parseNamingConvention )
-    <$> ms
+    $ ( parseNamingConvention . migratumScriptFileName ) <$> ms
   if anySame versions
     then throwError $ MigratumError "Duplicate migration file"
     else pure ms

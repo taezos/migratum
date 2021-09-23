@@ -1,5 +1,5 @@
 { mkDerivation, base, stdenv, relude, mtl, text, optparse-applicative, turtle
-, yaml, aeson, microlens, ansi-terminal ,  hasql, hasql-migration
+, yaml, aeson, ansi-terminal, hasql, hasql-migration
 , hasql-transaction, parsec, hspec, containers
 }:
 mkDerivation {
@@ -10,7 +10,7 @@ mkDerivation {
   isExecutable = true;
   libraryHaskellDepends =
     [ base relude mtl text optparse-applicative turtle aeson yaml
-      microlens ansi-terminal hasql hasql-migration hasql-transaction
+      ansi-terminal hasql hasql-migration hasql-transaction
       parsec hspec containers
     ];
   executableHaskellDepends = [ base relude ];

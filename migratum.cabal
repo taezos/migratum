@@ -54,7 +54,6 @@ library
                      , aeson
                      , yaml
                      , ansi-terminal
-                     , microlens
                      , hasql
                      , hasql-migration
                      , hasql-transaction
@@ -79,7 +78,6 @@ test-suite test
                     , mtl
                     , turtle
                     , yaml
-                    , lens
   default-language:   Haskell2010
   other-modules:      FileSpec
                     , FileNameSpec

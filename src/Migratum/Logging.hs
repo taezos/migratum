@@ -1,7 +1,5 @@
 module Migratum.Logging where
 
--- 
-import           Lens.Micro
 import qualified System.Console.ANSI as ANSI
 
 -- migratum
@@ -11,13 +9,13 @@ import           Import
 import qualified Data.Text           as T
 
 data LogMessage = LogMessage
-  { _logMessageText   :: Text
-  , _logMessageHeader :: Text
+  { logMessageText   :: Text
+  , logMessageHeader :: Text
   } deriving ( Eq, Show )
 
 data Log = Log
-  { _logReason :: Severity
-  , _logMsg    :: LogMessage
+  { logReason :: Severity
+  , logMsg    :: LogMessage
   } deriving ( Eq, Show )
 
 data Severity
@@ -25,24 +23,13 @@ data Severity
   | Error
   deriving ( Eq, Show )
 
-logMessageHeader :: Lens' LogMessage Text
-logMessageHeader = lens _logMessageHeader
-  (\logMessage newHeader -> logMessage { _logMessageHeader = newHeader })
-
-logMessageText :: Lens' LogMessage Text
-logMessageText = lens _logMessageText
-  (\logMessage newMsg -> logMessage { _logMessageText = newMsg })
-
-logMsg :: Lens' Log LogMessage
-logMsg = lens _logMsg (\log newLogMsg -> log { _logMsg = newLogMsg })
-
 mkLog :: Monad m => Severity -> Text -> m Log
 mkLog reason msg = do
   pure $ Log
-    { _logReason = reason
-    , _logMsg = LogMessage
-      { _logMessageText = msg
-      , _logMessageHeader = mkHeader reason
+    { logReason = reason
+    , logMsg = LogMessage
+      { logMessageText = msg
+      , logMessageHeader = mkHeader reason
       }
     }
   where
@@ -59,10 +46,10 @@ logError msg = terminalLog =<< mkLog Error msg
 
 terminalLog :: MonadIO m => Log -> m ()
 terminalLog logDesc = do
-  liftIO $ ANSI.setSGR [ ANSI.SetColor ANSI.Foreground ANSI.Dull ( reasonToColor $ _logReason logDesc ) ]
-  putStr . T.unpack $ logDesc ^. logMsg . logMessageHeader
+  liftIO $ ANSI.setSGR [ ANSI.SetColor ANSI.Foreground ANSI.Dull ( reasonToColor $ logReason logDesc ) ]
+  putStr $ T.unpack . logMessageHeader . logMsg $ logDesc
   liftIO $ ANSI.setSGR []
-  putStrLn . T.unpack $ logDesc ^. logMsg . logMessageText
+  putStrLn $ T.unpack .  logMessageText . logMsg $ logDesc
   where
     reasonToColor :: Severity -> ANSI.Color
     reasonToColor sev = case sev of
