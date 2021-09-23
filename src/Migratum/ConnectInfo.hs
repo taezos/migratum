@@ -1,17 +1,12 @@
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TemplateHaskell #-}
 module Migratum.ConnectInfo where
-
--- base
-import           Data.Char     (toLower)
 
 -- migratum
 import           Import
 
 -- aeson
-import           Data.Aeson.TH
-
--- casing
-import           Text.Casing   (snake)
+import           Data.Aeson
 
 -- microlens
 import           Lens.Micro
@@ -26,7 +21,7 @@ defaultMigratumConfig = MigratumConnect $ MigratumConnectInfo
   mempty
   mempty
   mempty
-  mempty
+  5432
 
 decodeMigratumConfig :: ByteString -> Either ParseException MigratumConnect
 decodeMigratumConfig = Y.decodeEither'
@@ -40,22 +35,36 @@ data MigratumConnectInfo = MigratumConnectInfo
   , _migratumConnectInfoPostgresDb       :: Text
   , _migratumConnectInfoPostgresUser     :: Text
   , _migratumConnectInfoPostgresHost     :: Text
-  , _migratumConnectInfoPostgresPort     :: Text
+  , _migratumConnectInfoPostgresPort     :: Word16
   } deriving ( Eq, Show )
 
-$(deriveJSON
-  defaultOptions
-  { fieldLabelModifier = fmap toLower
-    . snake
-    . drop ( genericLength "_MigratumConnect" )
-  } ''MigratumConnect)
+instance ToJSON MigratumConnect where
+  toJSON MigratumConnect {..} = object
+    [ "config" .= _migratumConnectConfig
+    ]
 
-$(deriveJSON
-  defaultOptions
-  { fieldLabelModifier = fmap toLower
-    . snake
-    . drop ( genericLength "_MigratumConnectInfo" )
-  } ''MigratumConnectInfo)
+instance FromJSON MigratumConnect where
+  parseJSON = withObject "migratumConnect" $ \mc -> do
+    _migratumConnectConfig <- mc .: "config"
+    pure $ MigratumConnect {..}
+
+instance ToJSON MigratumConnectInfo where
+  toJSON MigratumConnectInfo{..} = object
+    [ "postgres_password" .= _migratumConnectInfoPostgresPassword
+    , "postgres_db" .= _migratumConnectInfoPostgresDb
+    , "postgres_user" .= _migratumConnectInfoPostgresUser
+    , "postgres_host" .= _migratumConnectInfoPostgresHost
+    , "postgres_port" .= _migratumConnectInfoPostgresPort
+    ]
+
+instance FromJSON MigratumConnectInfo where
+  parseJSON = withObject "migratumConnectInfo" $ \mci -> do
+    _migratumConnectInfoPostgresPassword <- mci .: "postgres_password"
+    _migratumConnectInfoPostgresDb       <- mci .: "postgres_db"
+    _migratumConnectInfoPostgresUser     <- mci .: "postgres_user"
+    _migratumConnectInfoPostgresHost     <- mci .: "postgres_host"
+    _migratumConnectInfoPostgresPort     <- mci .: "postgres_port"
+    pure $ MigratumConnectInfo {..}
 
 -- * Lens
 migratumConnectConfig :: Lens' MigratumConnect MigratumConnectInfo
@@ -78,6 +87,6 @@ migratumConnectInfoPostgresHost :: Lens' MigratumConnectInfo Text
 migratumConnectInfoPostgresHost = lens _migratumConnectInfoPostgresHost
   (\s newHost -> s { _migratumConnectInfoPostgresHost = newHost })
 
-migratumConnectInfoPostgresPort :: Lens' MigratumConnectInfo Text
+migratumConnectInfoPostgresPort :: Lens' MigratumConnectInfo Word16
 migratumConnectInfoPostgresPort = lens _migratumConnectInfoPostgresPort
   (\s newPort -> s { _migratumConnectInfoPostgresPort = newPort })

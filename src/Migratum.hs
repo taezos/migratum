@@ -17,7 +17,7 @@ import           Import                        hiding (FilePath)
 import           Migratum.Capability.CLI
 import           Migratum.Capability.File
 import           Migratum.Capability.Migration
-import           Migratum.Config
+import           Migratum.ConnectInfo
 import           Migratum.Feedback
 import           Migratum.Logging
 
@@ -70,13 +70,16 @@ instance MonadIO m => ManageFile ( AppM m ) MigratumResponse where
   getMigrationScriptNames = getMigrationScriptNamesImpl readDirEff
 
 instance MonadIO m => ManageMigration ( AppM m ) MigratumResponse where
-  readMigrationConfig :: AppM m Config
+  readMigrationConfig :: AppM m MigratumConnect
   readMigrationConfig = readMigrationConfigBase readFileEff
 
-  runMigratumMigration :: Config -> [ FilePath ] -> AppM m [ MigratumResponse ]
+  runMigratumMigration
+    :: MigratumConnect
+    -> [ FilePath ]
+    -> AppM m [ MigratumResponse ]
   runMigratumMigration = runMigratumMigrationBase runMigrationFns
 
-  initializeMigration :: Config -> AppM m MigratumResponse
+  initializeMigration :: MigratumConnect -> AppM m MigratumResponse
   initializeMigration config = initializeMigrationBase
     acquireConnectionImpl
     runTransaction

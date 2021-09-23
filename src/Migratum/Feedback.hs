@@ -6,7 +6,7 @@ import           Text.Show
 
 -- migratum
 import           Import          hiding (FilePath, show)
-import           Migratum.Config
+import           Migratum.ConnectInfo
 
 -- text
 import qualified Data.Text       as T
@@ -41,7 +41,7 @@ data MigratumResponse
   = Generated Text
   | MigrationPerformed MigratumFilename
   | InitializedMigration
-  | MigrationConfigRead MigrationConfig
+  | MigrationConfigRead MigratumConnectInfo
   | MigratumSuccess Text
   deriving ( Eq )
 

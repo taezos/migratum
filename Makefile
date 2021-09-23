@@ -1,3 +1,6 @@
+ghcid-lib:
+	ghcid -c cabal repl
+
 build:
 	cabal new-build
 

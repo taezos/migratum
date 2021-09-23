@@ -1,13 +1,10 @@
 {-# LANGUAGE FlexibleContexts       #-}
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE RecordWildCards        #-}
-{-# LANGUAGE ScopedTypeVariables        #-}
+{-# LANGUAGE ScopedTypeVariables    #-}
 module Migratum.Capability.Migration where
 
 import           Import                        hiding (FilePath)
-
--- base
-import           Data.List                     (nub)
 
 -- parsec
 import           Text.ParserCombinators.Parsec (ParseError)
@@ -44,14 +41,14 @@ import qualified Hasql.Transaction.Sessions    as Transaction
 import           Hasql.Migration
 
 -- migratum
+import           Migratum.ConnectInfo
 import           Migratum.Feedback
-import           Migratum.Config
 import           Migratum.Parser.NamingRule
 
 class MonadError MigratumError m => ManageMigration m v | m -> v where
-  initializeMigration :: Config -> m MigratumResponse
-  readMigrationConfig :: m Config
-  runMigratumMigration :: Config -> [ FilePath ] -> m [ MigratumResponse ]
+  initializeMigration :: MigratumConnect -> m MigratumResponse
+  readMigrationConfig :: m MigratumConnect
+  runMigratumMigration :: MigratumConnect -> [ FilePath ] -> m [ MigratumResponse ]
 
 readFileEff :: ( MonadIO m, MonadError MigratumError m ) => FilePath -> m Text
 readFileEff filePath = do
@@ -63,14 +60,14 @@ readFileEff filePath = do
 readMigrationConfigBase
   :: MonadError MigratumError m
   => ( FilePath -> m Text )
-  -> m Config
+  -> m MigratumConnect
 readMigrationConfigBase readEff = do
   config <- readEff "migrations/migratum.yaml"
   either
     ( throwError . MigratumError . T.pack . prettyPrintParseException )
     pure
     ( decodeEither'
-      $ encodeUtf8 config :: Either ParseException Config )
+      $ encodeUtf8 config :: Either ParseException MigratumConnect )
 
 -- | the fields are string because these fields are parsed and validated, and is
 -- easier to manipulate as strings, rather than convert back and forth between
@@ -97,35 +94,40 @@ data RunMigrationFn m = RunMigrationFn
   { checkDuplicateFn :: [ MigratumScript ] -> m [ MigratumScript ]
   , loadMigrationFromFileFn :: ScriptName -> String -> m MigrationCommand
   , acquireConnectionFn ::  Settings -> m ( Either ConnectionError Connection )
-  , runTransactionFn :: Connection -> Transaction ( Maybe MigrationError ) -> m ( Either QueryError ( Maybe MigrationError ) )
+  , runTransactionFn
+      :: Connection
+      -> Transaction ( Maybe MigrationError )
+      -> m ( Either QueryError ( Maybe MigrationError ) )
   }
 
 runMigrationFns :: ( MonadIO m, MonadError MigratumError m ) => RunMigrationFn m
 runMigrationFns = RunMigrationFn
   { checkDuplicateFn = checkDuplicateImpl
-  , loadMigrationFromFileFn = (\scriptName filePath -> liftIO $ loadMigrationFromFile scriptName filePath )
+  , loadMigrationFromFileFn =
+      (\scriptName filePath ->
+         liftIO $ loadMigrationFromFile scriptName filePath )
   , acquireConnectionFn = acquireConnectionImpl
   , runTransactionFn = runTransaction
   }
 
 runMigratumMigrationBase
-  :: MonadError MigratumError m
+  :: ( MonadError MigratumError m, MonadIO m )
   => RunMigrationFn m
-  -> Config
+  -> MigratumConnect
   -> [ FilePath ]
   -> m [ MigratumResponse ]
-runMigratumMigrationBase RunMigrationFn{..} Config{..} scriptNames = do
+runMigratumMigrationBase RunMigrationFn{..} MigratumConnect{..} scriptNames = do
   -- acquiring connection
   conn <- either
     ( const $ throwError NoConfig )
     pure
-    =<< ( acquireConnectionFn $ mkConnectionSettings _configMigrationConfig )
+    =<< ( acquireConnectionFn $ mkConnectionSettings _migratumConnectConfig )
 
   -- validating the file names of the script if they are following the
   -- established naming convention.
-  validatedMigratumScripts <- sequence
-    $ validateMigratumScript
-    <$> ( scriptNameToMigratumScript <$> ( sort scriptNames ) )
+  validatedMigratumScripts <- traverse
+    ( validateMigratumScript . scriptNameToMigratumScript )
+    ( sort scriptNames )
 
   -- validating that scripts are unique.
   scriptsCheckedForDup <- checkDuplicateFn validatedMigratumScripts
@@ -140,7 +142,8 @@ runMigratumMigrationBase RunMigrationFn{..} Config{..} scriptNames = do
     $ runMigration
     <$> migrationScripts
 
-  traverse (\(t, a) -> resHandler t a) ( nub ( (,) <$> validatedMigratumScripts <*> res ) )
+  traverse (\(t, a) -> resHandler t a )
+    $ zipWith (,) validatedMigratumScripts res
 
   where
     resHandler
@@ -183,19 +186,19 @@ getVersion
   -> m FileVersion
 getVersion res = case res of
   Left err -> throwError $ MigratumError $ show err
-  Right r -> pure $ fileVersion r
+  Right r  -> pure $ fileVersion r
 
 initializeMigrationBase
   :: MonadError MigratumError m
   => AcquireConnectionFn m
   -> RunTransactionFn m ( Maybe MigrationError )
-  -> Config
+  -> MigratumConnect
   -> m MigratumResponse
-initializeMigrationBase acquireConnection runTransactionFn Config{..} = do
+initializeMigrationBase acquireConnection runTransactionFn MigratumConnect{..} = do
   conn <- either
     ( const $ throwError NoConfig )
     pure
-    =<< ( acquireConnection $ mkConnectionSettings _configMigrationConfig )
+    =<< ( acquireConnection $ mkConnectionSettings _migratumConnectConfig )
   res <- runTransactionFn conn $ runMigration MigrationInitialization
   case res of
     Left err -> throwError . MigratumError $ show err
@@ -213,13 +216,13 @@ runTransaction
 runTransaction conn trans = liftIO $
   Session.run ( Transaction.transaction ReadCommitted Write trans ) conn
 
-mkConnectionSettings :: MigrationConfig -> Settings
-mkConnectionSettings MigrationConfig{..} = Connection.settings
-  ( TE.encodeUtf8 _migrationConfigPostgresHost )
-  _migrationConfigPostgresPort
-  ( TE.encodeUtf8 _migrationConfigPostgresUser )
-  ( TE.encodeUtf8 _migrationConfigPostgresPassword )
-  ( TE.encodeUtf8 _migrationConfigPostgresDb )
+mkConnectionSettings :: MigratumConnectInfo -> Settings
+mkConnectionSettings MigratumConnectInfo{..} = Connection.settings
+  ( TE.encodeUtf8 _migratumConnectInfoPostgresHost )
+  _migratumConnectInfoPostgresPort
+  ( TE.encodeUtf8 _migratumConnectInfoPostgresUser )
+  ( TE.encodeUtf8 _migratumConnectInfoPostgresPassword )
+  ( TE.encodeUtf8 _migratumConnectInfoPostgresDb )
 
 acquireConnectionImpl
   :: MonadIO m
@@ -241,8 +244,7 @@ checkDuplicateImpl ms = do
   where
     anySame :: Eq a => [ a ] -> Bool
     anySame = f []
-   
+
     f :: Eq a => [a] -> [a] -> Bool
     f seen ( x:xs ) = x `elem` seen || f ( x:seen ) xs
-    f _ [] = False
-
+    f _ []          = False

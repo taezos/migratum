@@ -37,7 +37,6 @@ executable migratum
 library
   exposed-modules:     Migratum
                      , Migratum.Feedback
-                     , Migratum.Config
                      , Migratum.Logging
                      , Migratum.ConnectInfo
                      , Migratum.Capability.File
@@ -56,7 +55,6 @@ library
                      , yaml
                      , ansi-terminal
                      , microlens
-                     , casing
                      , hasql
                      , hasql-migration
                      , hasql-transaction
@@ -80,6 +78,8 @@ test-suite test
                     , containers
                     , mtl
                     , turtle
+                    , yaml
+                    , lens
   default-language:   Haskell2010
   other-modules:      FileSpec
                     , FileNameSpec
