@@ -24,9 +24,9 @@ import           Migratum.Logging
 -- mtl
 import           Control.Monad.Except
 
-newtype AppM m a
+newtype AppM a
   = AppM
-  { unAppM :: ( ExceptT MigratumError m ) a
+  { unAppM :: ( ExceptT MigratumError IO ) a
   } deriving
   ( Functor
   , Applicative
@@ -39,12 +39,10 @@ startApp :: IO ()
 startApp = either ( logError . show ) ( traverse_ ( logInfo . show ) )
   =<< runExceptT runApp
 
-runApp
-  :: MonadIO m
-  => ExceptT MigratumError m [ MigratumResponse ]
+runApp :: ExceptT MigratumError IO [ MigratumResponse ]
 runApp = unAppM $ interpretCliCommand =<< parseCliCommand
 
-instance MonadIO m => ManageCLI ( AppM m ) MigratumResponse where
+instance ManageCLI AppM MigratumResponse where
   interpretCliCommand comm = case comm of
     CommandNew -> do
       dirRes <- genMigrationDir
@@ -63,23 +61,23 @@ instance MonadIO m => ManageCLI ( AppM m ) MigratumResponse where
     ( info ( helper <*> parseCommand )
       ( fullDesc <> progDesc migratumDesc <> header migratumHeader ))
 
-instance MonadIO m => ManageFile ( AppM m ) MigratumResponse where
+instance ManageFile AppM MigratumResponse where
   genMigrationDir = genMigrationDirImpl mkDirEff
   genMigrationConfig = genMigrationConfigImpl mkFileEff
   genSqlMigrationDir = genSqlMigrationDirImpl mkDirEff
   getMigrationScriptNames = getMigrationScriptNamesImpl readDirEff
 
-instance MonadIO m => ManageMigration ( AppM m ) MigratumResponse where
-  readMigrationConfig :: AppM m MigratumConnect
+instance ManageMigration AppM MigratumResponse where
+  readMigrationConfig :: AppM MigratumConnect
   readMigrationConfig = readMigrationConfigBase readFileEff
 
   runMigratumMigration
     :: MigratumConnect
     -> [ FilePath ]
-    -> AppM m [ MigratumResponse ]
+    -> AppM [ MigratumResponse ]
   runMigratumMigration = runMigratumMigrationBase runMigrationFns
 
-  initializeMigration :: MigratumConnect -> AppM m MigratumResponse
+  initializeMigration :: MigratumConnect -> AppM MigratumResponse
   initializeMigration config = initializeMigrationBase
     acquireConnectionImpl
     runTransaction
