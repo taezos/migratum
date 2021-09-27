@@ -41,6 +41,15 @@ newtype Underscore = Underscore Text
 newtype Dot = Dot Text
   deriving ( Eq, Show )
 
+instance Ord FilenameStructure where
+  compare fileS1 fileS2 = compare ( fileVersion fileS1 ) ( fileVersion fileS2 )
+
+instance Ord FileVersion where
+  compare fv1 fv2 = compare ( fileVersionToInt fv1 ) ( fileVersionToInt fv2 )
+
+fileVersionToInt :: FileVersion -> Maybe Int
+fileVersionToInt fv = readMaybe $ filter ( /='V' ) $ T.unpack $ versionToText fv
+
 fileVersion :: FilenameStructure -> FileVersion
 fileVersion ( FilenameStructure v _ _ _ _ _ ) = v
 
@@ -98,3 +107,4 @@ toFilePath ( FilenameStructure v  u  u' name dot ext ) = Turtle.fromText
   <> coerce name
   <> coerce dot
   <> coerce ext
+

@@ -1,6 +1,0 @@
-config:
-  postgres_password: migratum
-  postgres_db: migratum
-  postgres_user: migratum
-  postgres_host: localhost
-  postgres_port: 5432

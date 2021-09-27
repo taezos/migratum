@@ -23,12 +23,20 @@ data Command
   deriving ( Eq, Show )
 
 parseCommand :: Parser Command
-parseCommand = subparser $
-  ( command "new" $ parseCommandNew `withInfo` "Generate necessary files for migration" )
-  <>
-  ( command "init" $ parseCommandInit `withInfo` "Initialize database for migration" )
-  <>
-  ( command "migrate" $ parseCommandMigrate `withInfo` "Perform Migration" )
+parseCommand = subparser $ newCommand <> initCommand <> migrateCommand
+  where
+    newCommand :: Mod CommandFields Command
+    newCommand = command "new"
+      $ parseCommandNew `withInfo` "Generate necessary files for migration"
+
+    -- During initialization, the table for migration files will be created
+    initCommand :: Mod CommandFields Command
+    initCommand = command "init"
+      $ parseCommandInit `withInfo` "Initialize database for migration"
+
+    migrateCommand :: Mod CommandFields Command
+    migrateCommand = command "migrate"
+      $ parseCommandMigrate `withInfo` "Perform Migration"
 
 parseCommandNew :: Parser Command
 parseCommandNew = pure CommandNew

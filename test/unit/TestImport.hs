@@ -9,7 +9,7 @@ module TestImport
   , runTestM'
   ) where
 
-import           Relude                   as X hiding (FilePath)
+import           Relude                   as X
 import           Test.Hspec               as X
 
 import           Control.Monad.Except
@@ -19,8 +19,8 @@ import           Migratum.Feedback        as X
 
 import qualified Data.Map                 as M
 
-import           Turtle                   (FilePath)
-import qualified Turtle
+-- text
+import qualified Data.Text                as T
 
 newtype TestAppM a
   = TestAppM
@@ -34,34 +34,31 @@ newtype TestAppM a
   )
 
 mkTestDirEff :: MonadState ( M.Map Text Text ) m => FilePath -> m MigratumResponse
-mkTestDirEff fp = modify ( M.insert ( filePathToTxt fp ) "" )
-  >> ( pure $ Generated ( filePathToTxt fp ) )
+mkTestDirEff fp = modify ( M.insert ( T.pack fp ) "" )
+  >> ( pure $ Generated ( T.pack fp ) )
 
 mkTestFileEff
   :: MonadState ( M.Map Text Text ) m
   => FilePath
   -> Text
   -> m MigratumResponse
-mkTestFileEff fp content = modify ( M.insert ( filePathToTxt fp ) content )
-  >> ( pure $ Generated $ filePathToTxt fp )
+mkTestFileEff fp content = modify ( M.insert ( T.pack fp ) content )
+  >> ( pure $ Generated $ T.pack fp )
 
 readDirTest :: Monad m => FilePath -> m [ FilePath ]
 readDirTest _ = pure []
 
 instance ManageFile TestAppM Text where
   genMigrationDir :: TestAppM MigratumResponse
-  genMigrationDir = genMigrationDirImpl mkTestDirEff
+  genMigrationDir = mkTestDirEff "./migrations"
 
   genSqlMigrationDir :: TestAppM MigratumResponse
-  genSqlMigrationDir = genSqlMigrationDirImpl mkTestDirEff
+  genSqlMigrationDir = mkTestDirEff "./migrations/sql"
 
   genMigrationConfig :: TestAppM MigratumResponse
-  genMigrationConfig = genMigrationConfigImpl mkTestFileEff
+  genMigrationConfig = genMigrationConfigImpl mkTestFileEff "./migrations/migratum.yaml"
 
   getMigrationScriptNames = getMigrationScriptNamesImpl readDirTest
-
-filePathToTxt :: FilePath -> Text
-filePathToTxt = either id id . Turtle.toText
 
 runTestM' :: M.Map Text Text -> TestAppM a -> Either MigratumError a
 runTestM' fileSystem ( TestAppM a ) =

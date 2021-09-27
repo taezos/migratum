@@ -2,18 +2,16 @@
 let
   inherit ( nixpkgs ) pkgs;
   inherit ( pkgs ) haskellPackages;
-
-  project = haskellPackages.callPackage ./default.nix {};
-
 in
-pkgs.stdenv.mkDerivation {
+pkgs.mkShell {
   name = "migratum";
-  buildInputs = project.env.nativeBuildInputs ++ [
+  buildInputs = [
     haskellPackages.cabal-install
     haskellPackages.ghc
     haskellPackages.ghcid
     haskellPackages.hspec-discover
     pkgs.postgresql
     pkgs.zlib
+    pkgs.hpack
   ];
 }

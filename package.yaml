@@ -1,0 +1,65 @@
+name: migratum
+version: 0.1.0.0
+synopsis: A database migration tool
+maintainer: piq9117 <piq9117@gmail.com>
+github: taezos/migratum
+category: Development
+
+ghc-options: -Wall
+
+dependencies:
+  - base >=4.14 && <4.15
+  - relude
+  - mtl
+  - text
+  - optparse-applicative
+  - turtle
+  - aeson
+  - yaml
+  - ansi-terminal
+  - hasql
+  - hasql-transaction
+  - parsec
+  - cryptonite
+  - vector
+  - filepath
+
+default-extensions:
+  - OverloadedStrings
+  - NoImplicitPrelude
+
+library:
+  source-dirs: src
+  exposed-modules:
+    - Migratum
+    - Migratum.Feedback
+    - Migratum.Logging
+    - Migratum.ConnectInfo
+    - Migratum.Capability.File
+    - Migratum.Capability.CLI
+    - Migratum.Capability.Migration
+    - Migratum.Parser.NamingRule
+
+executable:
+  main: Main.hs
+  source-dirs: app
+  dependencies:
+    - migratum
+
+tests:
+  unit:
+    main: Spec.hs
+    source-dirs: test/unit
+    ghc-options: -Wall
+    dependencies:
+      - hspec
+      - migratum
+      - containers
+  integration:
+    main: Spec.hs
+    source-dirs: test/integration
+    ghc-options: -Wall
+    dependencies:
+      - hspec
+      - migratum
+      - containers

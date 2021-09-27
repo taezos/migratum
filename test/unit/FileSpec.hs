@@ -30,8 +30,8 @@ spec = do
       let script1 = MigratumScript "V1__uuid_extension.sql" "migrations"
       let script2 = MigratumScript "V1__client_table.sql" "migrations"
 
-      res <- runExceptT $ checkDuplicateImpl [ script1, script2 ]
-      shouldBe res ( Left $ MigratumError "Duplicate migration file" )
+      res <- runExceptT $ checkDuplicateVersionsImpl [ script1, script2 ]
+      shouldBe res ( Left $ MigratumError "Duplicate migration version" )
 
     it "will decode config file - migratum.yaml" $ do
       fileContent <- readFileBS "test/asset/migratum.yaml"

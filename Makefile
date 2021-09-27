@@ -8,4 +8,4 @@ ghcid-lib:
 	ghcid -c cabal repl
 
 ghcid-test:
-	ghcid -c="cabal repl test"
+	ghcid -c="cabal repl unit"

@@ -5,13 +5,12 @@
 {-# LANGUAGE ScopedTypeVariables    #-}
 module Migratum.Capability.File where
 
-import           Import               hiding (FilePath)
+import           Import
 
 -- mtl
 import           Control.Monad.Except
 
 -- turtle
-import           Turtle               (FilePath)
 import qualified Turtle
 import qualified Turtle.Prelude       as TP
 import           Turtle.Shell         (FoldShell (..))
@@ -38,54 +37,46 @@ class MonadError MigratumError m => ManageFile m v | m -> v where
   getMigrationScriptNames :: m [ FilePath ]
 
 -- * Implementations
-readDirEff :: MonadIO m => FilePath -> m [ FilePath ]
-readDirEff fp = TS.foldShell ( TP.ls fp )
-  ( FoldShell (\filePaths filePath -> pure $ filePath : filePaths) empty pure )
+readDirIO :: MonadIO m => FilePath -> m [ FilePath ]
+readDirIO fp = do
+  s <- TS.foldShell ( TP.ls $ Turtle.decodeString fp )
+    ( FoldShell (\filePaths filePath -> pure $ filePath : filePaths) empty pure )
+  pure $ Turtle.encodeString <$> s
 
-mkDirEff
+mkDirIO
   :: ( MonadIO m, MonadError MigratumError m )
   => FilePath
   -> m MigratumResponse
-mkDirEff dirName = do
-  isExists <- TP.testdir dirName
+mkDirIO dirName = do
+  isExists <- TP.testdir $ Turtle.decodeString dirName
   if isExists
     then throwError DirectoryAlreadyExists
-    else TP.mkdir dirName
-      >> ( pure $ Generated $ either id id $ Turtle.toText dirName )
+    else TP.mkdir ( Turtle.decodeString dirName ) >> pure migratumResponse
+  where
+    migratumResponse = Generated
+      $ either id id
+      $ Turtle.toText
+      $ Turtle.decodeString dirName
 
-mkFileEff
+mkFileIO
   :: ( MonadIO m, MonadError MigratumError m )
   => FilePath
   -> Text
   -> m MigratumResponse
-mkFileEff filePath content = do
-  isExists <- TP.testfile filePath
+mkFileIO filePath content = do
+  let decodedFilePath = Turtle.decodeString filePath
+  isExists <- TP.testfile decodedFilePath
   if isExists
     then throwError FileAlreadyExists
-    else liftIO $ TP.writeTextFile filePath content
-      >> ( pure $ Generated $ either id id $ Turtle.toText filePath )
-
-genMigrationDirImpl
-  :: Monad m
-  => ( FilePath -> m MigratumResponse )
-  -> m MigratumResponse
-genMigrationDirImpl createDirEff = createDirEff "./migrations"
+    else liftIO $ TP.writeTextFile decodedFilePath content
+      >> ( pure $ Generated $ either id id $ Turtle.toText decodedFilePath )
 
 genMigrationConfigImpl
   :: Monad m
   => ( FilePath -> Text -> m MigratumResponse )
+  -> FilePath
   -> m MigratumResponse
-genMigrationConfigImpl createFileEff =
-  createFileEff "./migrations/migratum.yaml" ( TE.decodeUtf8 $ Y.encode defaultMigratumConfig )
+genMigrationConfigImpl createFileFn filePath =
+  createFileFn filePath
+    ( TE.decodeUtf8 $ Y.encode defaultMigratumConfig )
 
-genSqlMigrationDirImpl
-  :: Monad m =>
-  ( FilePath -> m MigratumResponse )
-  -> m MigratumResponse
-genSqlMigrationDirImpl createDirEff = createDirEff "./migrations/sql"
-
-getMigrationScriptNamesImpl
-  :: MonadError MigratumError m
-  => ( FilePath -> m [ FilePath ] )
-  -> m [ FilePath ]
-getMigrationScriptNamesImpl readDir = readDir "./migrations/sql"

@@ -19,6 +19,8 @@ data MigratumError
   | MigratumError Text
   deriving ( Eq )
 
+instance Exception MigratumError
+
 -- | Manually deriving Show instance so it will result into
 -- > MigratumError Aeson exception:
 -- > Error in $.config['postgres_password']: parsing Text failed, expected String, but encountered Null
@@ -42,7 +44,7 @@ data MigratumResponse
   | MigrationPerformed MigratumFilename
   | InitializedMigration
   | MigrationConfigRead MigratumConnectInfo
-  | MigratumSuccess Text
+  | MigrationSuccess Text
   deriving ( Eq )
 
 -- | Manually deriving Show instance so it will result into
@@ -54,5 +56,5 @@ instance Show MigratumResponse where
   show ( MigrationPerformed filename ) = "MigrationPerformed "
     <> ( T.unpack $ migratumFileNameToText filename )
   show ( MigrationConfigRead result )  = "MigrationConfigRead "  <> show result
-  show ( MigratumSuccess msg )         = "MigrationSuccess " <> T.unpack msg
+  show ( MigrationSuccess msg )         = "MigrationSuccess " <> T.unpack msg
   show InitializedMigration            = "InitializedMigration"

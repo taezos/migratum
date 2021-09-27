@@ -3,7 +3,9 @@ module FileNameSpec where
 import           TestImport
 
 -- migratum
+import           Migratum.Capability.Migration
 import           Migratum.Parser.NamingRule
+
 spec :: Spec
 spec = do
   describe "FilenameSpec" $ do
@@ -32,3 +34,9 @@ spec = do
       shouldBe ( isLeft noVersion ) True
       shouldBe ( isRight upperCaseFilename ) True
       shouldBe ( isLeft symbolFilename ) True
+
+    it "will order MigratumScript" $ do
+      let mg1 = MigratumScript "V1__table1.sql" "file content"
+      let mg2 = MigratumScript "V2__table2.sql" "file content"
+      let mg3 = MigratumScript "V3__table3.sql" "file content"
+      shouldBe ( sort [mg3, mg1, mg2] ) [ mg1, mg2, mg3 ]
