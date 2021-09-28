@@ -109,7 +109,7 @@ getAppEnv migrationsDir configFile = do
       ( MigratumError "Error acquiring db connection" )
       ( MigratumError . TE.decodeUtf8 )
 
-instance ManageCLI AppM MigratumResponse where
+instance ManageCLI AppM where
   interpretCliCommand comm = case comm of
     CommandNew -> do
       dirRes <- genMigrationDir
@@ -125,7 +125,7 @@ instance ManageCLI AppM MigratumResponse where
     ( info ( helper <*> parseCommand )
       ( fullDesc <> progDesc migratumDesc <> header migratumHeader ))
 
-instance ManageFile AppM MigratumResponse where
+instance ManageFile AppM where
   genMigrationDir = do
     migrationsDir <- asks envMigrationsDir
     mkDirIO migrationsDir

@@ -20,9 +20,9 @@ spec = do
           fileRes <- genMigrationConfig
           pure [ dirRes, sqlDir, fileRes ]
         expected =
-          [ Generated "./migrations"
-          , Generated "./migrations/sql"
-          , Generated "./migrations/migratum.yaml"
+          [ Generated "migrations"
+          , Generated "migrations/sql"
+          , Generated "migrations/migratum.yaml"
           ]
       shouldBe result ( Right expected )
 
@@ -34,22 +34,22 @@ spec = do
       shouldBe res ( Left $ MigratumError "Duplicate migration version" )
 
     it "will decode config file - migratum.yaml" $ do
-      fileContent <- readFileBS "test/asset/migratum.yaml"
+      fileContent <- readFileBS "test/asset/migrations/migratum.yaml"
       case Y.decodeThrow @_ @MigratumConnect fileContent of
         Nothing -> fail "cannot decode config file"
         Just config -> do
           shouldBe
             ( migratumConnectInfoPostgresPassword
               . migratumConnectConfig $ config )
-            "migratum"
+            "migratum-test"
 
           shouldBe
             ( migratumConnectInfoPostgresDb . migratumConnectConfig $ config )
-            "migratum"
+            "migratum-test"
 
           shouldBe
             ( migratumConnectInfoPostgresUser . migratumConnectConfig $ config )
-            "migratum"
+            "migratum-test"
 
           shouldBe
             ( migratumConnectInfoPostgresHost . migratumConnectConfig $ config )

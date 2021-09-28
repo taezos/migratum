@@ -12,7 +12,7 @@ import           Options.Applicative
 -- migratum
 import           Import
 
-class MonadError MigratumError m => ManageCLI m v | m -> v where
+class Monad m => ManageCLI m where
   parseCliCommand :: m Command
   interpretCliCommand :: Command -> m [ MigratumResponse ]
 

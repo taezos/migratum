@@ -26,7 +26,7 @@ import qualified Data.Yaml            as Y
 -- text
 import qualified Data.Text.Encoding   as TE
 
-class MonadError MigratumError m => ManageFile m v | m -> v where
+class Monad m => ManageFile m where
   genMigrationDir :: m MigratumResponse
   genSqlMigrationDir :: m MigratumResponse
   genMigrationConfig :: m MigratumResponse

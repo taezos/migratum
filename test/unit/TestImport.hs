@@ -48,17 +48,18 @@ mkTestFileEff fp content = modify ( M.insert ( T.pack fp ) content )
 readDirTest :: Monad m => FilePath -> m [ FilePath ]
 readDirTest _ = pure []
 
-instance ManageFile TestAppM Text where
+instance ManageFile TestAppM where
   genMigrationDir :: TestAppM MigratumResponse
-  genMigrationDir = mkTestDirEff "./migrations"
+  genMigrationDir = mkTestDirEff "migrations"
 
   genSqlMigrationDir :: TestAppM MigratumResponse
-  genSqlMigrationDir = mkTestDirEff "./migrations/sql"
+  genSqlMigrationDir = mkTestDirEff "migrations/sql"
 
   genMigrationConfig :: TestAppM MigratumResponse
-  genMigrationConfig = genMigrationConfigImpl mkTestFileEff "./migrations/migratum.yaml"
+  genMigrationConfig = genMigrationConfigImpl
+    mkTestFileEff "migrations/migratum.yaml"
 
-  getMigrationScriptNames = getMigrationScriptNamesImpl readDirTest
+  getMigrationScriptNames = readDirTest "migrations/migratum.yaml"
 
 runTestM' :: M.Map Text Text -> TestAppM a -> Either MigratumError a
 runTestM' fileSystem ( TestAppM a ) =
